@@ -1,0 +1,228 @@
+@page "/Reportes/ListadoGastos"
+@using Dominio
+@using InterfazUsuario.Data
+@using InterfazUsuario.Pages.Categorias
+@using Logica
+@inject LogicaCategoria CategoryLogic
+@inject LogicaCuenta AccountLogic
+@inject LogicaTransaccion TransactionLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h3>Listado De Gastos</h3>
+
+
+<div class="form-group">
+    <label for="tituloTarjeta">Seleccione una tarjeta</label>
+    <select id="tituloTarjeta" name="tituloTarjeta" class="form-control" @bind="_tituloTarjeta">
+        <option value="">Seleccione una Tarjeta</option>
+        @foreach (var t in _tarjetas)
+        {
+            <option value="@t.Nombre">@t.Nombre - @t.UltimosDigitos</option>
+        }
+    </select>
+</div>
+
+<div class="form-group">
+    <label for="tituloCuenta">Seleccione una cuenta</label>
+    <select id="tituloCuenta" name="tituloCuenta" class="form-control" @bind="_tituloCuentaMonetaria">
+        <option value="">Seleccione una cuenta</option>
+        @foreach (var unaCuenta in _cuentas)
+        {
+            <option value="@unaCuenta.Nombre">@unaCuenta.Nombre</option>
+        }
+    </select>
+</div>
+
+
+<div class="form-group">
+    <label for="nombreCat">Seleccione una categoria</label>
+    <select id="nombreCat" name="nombreCat" class="form-control" @bind="_nombreCategoria">
+        <option value="">Seleccione una categoria</option>
+        @foreach (var unaCategoria in _categorias)
+        {
+            <option value="@unaCategoria.Nombre">@unaCategoria.Nombre</option>
+        }
+    </select>
+</div>
+
+<div class="form-group">
+    <label for="rangoInicio">Seleccione el intervalo inferior de la busqueda</label>
+    <input type="date" class="form-control" id="rangoInicio" @bind="_rangoInicio"/>
+</div>
+
+<div class="form-group">
+    <label for="rangoFin">Seleccione el intervalo superior de la busqueda</label>
+    <input type="date" class="form-control" id="rangoFin" @bind="_rangoFin"/>
+</div>
+
+<button type="button" class="btn btn-primary" @onclick="() => { FiltrarTransacciones(); vaciarMensaje(); }">Mostrar gastos segun filtros</button>
+
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo de la transaccion</th>
+        <th>Fecha</th>
+        <th>Monto</th>
+        <th>Moneda</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (TransactionLogic.ListarTransacciones(_space) != null)
+    {
+        @foreach (Transaccion t in _transaccionesGastos)
+        {
+            <tr>
+                <td>@t.Titulo</td>
+                <td>@t.Fecha.ToString("dd-MM-yyyy")</td>
+                <td>@t.Monto</td>
+                <td>@t.Moneda</td>
+                <td></td>
+            </tr>
+        }
+    }
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <p class="error-message">
+            @_errorMessage
+        </p>
+    }
+
+    </tbody>
+</table>
+
+
+@code {
+    private string _tituloTarjeta = "";
+    private string _tituloCuentaMonetaria = "";
+    private string _nombreCategoria = "";
+    private string _errorMessage = "";
+    private DateTime? _rangoInicio;
+    private DateTime? _rangoFin;
+    private List<TarjetaCredito> _tarjetas;
+    private List<CuentaMonetaria> _cuentas;
+    private List<Categoria> _categorias;
+    private List<Transaccion> _transaccionesGastos;
+
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _tarjetas = (AccountLogic.ListarCuentas(_space) as List<Cuenta>).OfType<TarjetaCredito>().ToList();
+        _cuentas = (AccountLogic.ListarCuentas(_space) as List<Cuenta>).OfType<CuentaMonetaria>().ToList();
+        _categorias = CategoryLogic.ObtenerCategoriasDeEspacio(_space).FindAll(unaCategoria => unaCategoria.Tipo == "Costo");
+        _transaccionesGastos = TransactionLogic.ListarTransacciones(_space).FindAll(x => x.TipoTransaccion == "Costo");
+    }
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void vaciarMensaje()
+    {
+        _errorMessage = "";
+    }
+    
+    private void FiltrarTransacciones()
+    {
+        try
+        {
+            _transaccionesGastos = TransactionLogic.ListarTransacciones(_space).FindAll(x => x.TipoTransaccion == "Costo");
+            if (_rangoFin < _rangoInicio)
+            {
+                throw new LogicException("El rango fin debe de ser mayor al rango inicio");
+            }
+            if (EncontrarTarjetaPorNombre(_tituloTarjeta) != null)
+            {
+                FiltrarTransaccionesPorTarjeta();
+            }
+            if (encontrarCuentaPorNombre(_tituloCuentaMonetaria) != null)
+            {
+                FiltrarTransaccionesPorCuentaMonetaria();
+            }
+            if (encontrarCategoriaPorNombre(_nombreCategoria) != null)
+            {
+                FiltrarTransaccionesPorCategoria();
+            }
+            if (_rangoFin != null && _rangoInicio != null)
+            {
+                FiltrarTransaccionesPorFecha();
+            }
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.mensaje);
+        }
+    }
+
+    private void FiltrarTransaccionesPorCategoria()
+    {
+        for (var i = _transaccionesGastos.Count - 1; i >= 0; i--)
+        {
+            if (_transaccionesGastos[i].Categoria.Nombre != _nombreCategoria)
+            {
+                _transaccionesGastos.RemoveAt(i);
+            }
+        }
+    }
+
+
+    private void FiltrarTransaccionesPorCuentaMonetaria()
+    {
+        for (var i = _transaccionesGastos.Count - 1; i >= 0; i--)
+        {
+            if (_transaccionesGastos[i].Cuenta.Nombre != _tituloCuentaMonetaria)
+            {
+                _transaccionesGastos.RemoveAt(i);
+            }
+        }
+    }
+
+
+    private void FiltrarTransaccionesPorTarjeta()
+    {
+        for (var i = _transaccionesGastos.Count - 1; i >= 0; i--)
+        {
+            if (_transaccionesGastos[i].Cuenta.Nombre != _tituloTarjeta)
+            {
+                _transaccionesGastos.RemoveAt(i);
+            }
+        }
+    }
+
+
+    private void FiltrarTransaccionesPorFecha()
+    {
+        for (var i = _transaccionesGastos.Count - 1; i >= 0; i--)
+        {
+            var unaTransaccion = _transaccionesGastos[i];
+            if (unaTransaccion.Fecha < _rangoInicio || unaTransaccion.Fecha > _rangoFin)
+            {
+                _transaccionesGastos.RemoveAt(i);
+            }
+        }
+    }
+
+
+    private TarjetaCredito EncontrarTarjetaPorNombre(string nombre)
+    {
+        return AccountLogic.ListarTarjetas(_space).FirstOrDefault(unaTransaccion => unaTransaccion.Nombre == nombre) as TarjetaCredito;
+    }
+
+    private CuentaMonetaria encontrarCuentaPorNombre(string nombre)
+    {
+        return AccountLogic.ListarCuentasMonetarias(_space).FirstOrDefault(unaCuenta => unaCuenta.Nombre == nombre) as CuentaMonetaria;
+    }
+
+    private Categoria encontrarCategoriaPorNombre(string nombre)
+    {
+        return CategoryLogic.ObtenerCategoriasDeEspacio(_space).FirstOrDefault(unaCategoria => unaCategoria.Nombre == nombre);
+    }
+
+}

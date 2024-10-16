@@ -1,0 +1,125 @@
+@page "/Category/Edit/{id:int}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+
+@inject LogicaCategoria CategoryLogic
+@inject LogicaCategoria LogicaCategoria
+@inject LogicaTransaccion LogicaTransaccion
+@inject LogicaObjetivos LogicaObjetivos
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h3>Editar Categoria</h3>
+
+<h5>Está modificando la categoría de datos:</h5>
+<p>Nombre: @_currentCategory.Nombre</p>
+<p>Estatus: @_currentCategory.Estatus</p>
+<p>Tipo: @_currentCategory.Tipo</p>
+
+<div @onclick=VaciarMensajes>
+    <form @onsubmit="SaveChanges">
+        <div class="form-group">
+            <label for="estatus">Estatus</label>
+            <select id="estatus" class="form-control" @bind="_estatus" required>
+                <option value="Activa">Activa</option>
+                <option value="Inactiva">Inactiva</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="tipo">Tipo</label>
+            <select id="tipo" class="form-control" @bind="_tipo" required>
+                <option value="Ingreso">Ingreso</option>
+                <option value="Costo">Costo</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </form>
+</div>
+
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Categoria _currentCategory;
+    private Espacio _space;
+
+    private string? _estatus = "Activa";
+    private string? _tipo = "Ingreso";
+    private string _errorMessage = "";
+    private string _successMessage = "";
+
+
+    protected override void OnInitialized()
+    {
+        _currentCategory = LogicaCategoria.FindById(Id);
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);;
+    }
+
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            Categoria updatedCategory = new Categoria()
+            {
+                Id = _currentCategory.Id,
+                Nombre = _currentCategory.Nombre,
+                Estatus = _estatus,
+                Tipo = _tipo,
+                Espacio = _space
+            };
+            CategoryLogic.EditarCategoria(updatedCategory, LogicaTransaccion, _currentCategory.Tipo, LogicaObjetivos);
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+            return;
+        }
+        
+        MostrarMensajeExito("Categoria editada con exito");
+    }
+
+    private bool TieneTranssacionesAsociadas()
+    {
+        bool res = LogicaCategoria.TieneTransaccionAsociada(_space, _currentCategory, LogicaTransaccion);
+        return res;
+    }
+
+    private bool tieneObjetivoAsociado()
+    {
+        return LogicaCategoria.TieneObjetivoAsociado(_space, _currentCategory, LogicaObjetivos);
+    }
+
+    private void VaciarMensajes()
+    {
+        _successMessage = _errorMessage = "";
+    }
+
+}

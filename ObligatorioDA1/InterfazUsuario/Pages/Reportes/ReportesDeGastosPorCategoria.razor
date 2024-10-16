@@ -1,0 +1,75 @@
+@page "/Reportes/ReportesDeGastosPorCategoria"
+
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaReporte ReportLogic
+@inject LogicaEspacio SpaceLogic
+@inject LogicaTransaccion TransactionLogic
+@inject LogicaCategoria CategoryLogic
+@inject SessionLogic SessionLogic
+
+
+<h1>Reporte De Gastos Por Categoria</h1>
+<label for="mes">Seleccione un Mes:</label>
+<select id="mes" name="mes" @bind="_mes">
+    <option value=1>Enero</option>
+    <option value=2>Febrero</option>
+    <option value=3>Marzo</option>
+    <option value=4>Abril</option>
+    <option value=5>Mayo</option>
+    <option value=6>Junio</option>
+    <option value=7>Julio</option>
+    <option value=8>Agosto</option>
+    <option value=9>Septiembre</option>
+    <option value=10>Octubre</option>
+    <option value=11>Noviembre</option>
+    <option value=12>Diciembre</option>
+</select>
+<button type="button" class="btn btn-primary" @onclick="() => GenerarReportes(_mes)">Generar Reportes</button>
+<table>
+    <thead>
+    <tr class="table">
+        <th class="table-header">Categoria</th>
+        <th class="table-header">Gasto</th>
+        <th class="table-header">Gasto de la categoria sobre el total de gastos en el mes</th>
+    </tr>
+    </thead>
+    <tbody>
+
+    @foreach (ReporteDeCategoria unReporte in _reportes)
+    {
+        <tr>
+            <td>@unReporte.NombreCategoria</td>
+            <td>@unReporte.GastoPorCategoria</td>
+            <td>@unReporte.PorcentajeDeLTotal%</td>
+            <td>
+            </td>
+        </tr>
+    }
+
+    </tbody>
+</table>
+
+
+@code {
+
+    private int _mes;
+
+    private List<ReporteDeCategoria> _reportes = new List<ReporteDeCategoria>();
+
+    private Espacio _space; 
+
+    protected override void OnInitialized()
+    {
+        _space = SpaceLogic.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+    
+    private void GenerarReportes(int mes)
+    {
+        var categories = CategoryLogic.ObtenerCategoriasDeEspacio(_space).ToList();
+        List<ReporteDeCategoria> lista = ReportLogic.GenerarReporteDeCategorias(TransactionLogic, CategoryLogic, categories, _space, mes);
+        _reportes = lista;
+    }
+
+}

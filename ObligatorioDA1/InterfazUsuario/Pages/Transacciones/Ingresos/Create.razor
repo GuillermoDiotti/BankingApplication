@@ -1,0 +1,195 @@
+@page "/Transacciones/Ingresos/Create"
+@using Dominio
+@using InterfazUsuario.Data
+@using Logica
+<PageTitle>NuevaTransaccionIngreso</PageTitle>
+
+@inject LogicaTipoDeCambio LogicaTipoDeCambio
+@inject LogicaTransaccion LogicaTransaccion
+@inject LogicaCuenta LogicaCuenta
+@inject LogicaCategoria LogicaCategoria
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <h3>Nueva Transaccion De Tipo Ingreso</h3>
+        <form @onsubmit="crearTransaccion">
+            <div class="form-group">
+                <label for="titulo">Titulo</label>
+                <input type="text" class="form-control" id="titulo" @bind="_titulo" required/>
+            </div>
+            <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input type="date" id="fecha" class="form-control" name="fecha" @bind="_fecha" required>
+            </div>
+            <div class="form-group">
+                <label for="monto">Monto</label>
+                <input type="number" id="monto" class="form-control" name="monto" step="0.01" inputmode="decimal" @bind="_monto" required>
+            </div>
+            <div class="form-group">
+                <label for="moneda">Moneda</label>
+                <select id="moneda" class="form-control" @bind="_moneda" required>
+                    <option value="UYU">UYU</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cuenta">Seleccione una cuenta</label>
+                <select id="cuenta" name="cuenta" class="form-control" @bind="_nombreCuenta">
+                    <option value="" >Seleccione una Cuenta</option>
+                    @foreach (var unaCuenta in LogicaCuenta.ListarCuentas(_space))
+                    {
+                        <option value="@unaCuenta.Nombre">@unaCuenta.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tituloCategoria">Seleccione una categoria</label>
+                <select id="tituloCategoria" class="form-control" name="tituloCategoria" @bind="_nombreCategoria">
+                    <option value="" >Seleccione una Categoría</option>
+                    @foreach (var unaCategoria in ConseguirCategoriasIngresoDelUsuario())
+                    {
+                        <option value="@unaCategoria.Nombre">@unaCategoria.Nombre</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Ingresar</button>
+
+        </form>
+        <a href="/Transacciones/Ingresos/List">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+                {
+                    <p class="success-message">
+                        @_successMessage
+                    </p>
+                }
+    </section>
+</div>
+
+@code {
+    private string _nombreCuenta = "";
+    private string _successMessage = "";
+    private string _errorMessage = "";
+    private string _titulo;
+    private double _monto;
+    private DateTime _fecha;
+    private string _moneda = "UYU";
+    private string _nombreCategoria = "";
+    private double saldoFinal = 0;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _fecha = DateTime.Now;
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+
+    private List<Categoria> ConseguirCategoriasIngresoDelUsuario()
+    {
+        var todasLasCategorias = LogicaCategoria.ObtenerCategoriasDeEspacio(_space).ToList();
+        var categoriasIngresoYActivas = todasLasCategorias.FindAll(unaCategoria => unaCategoria.Tipo.Equals("Ingreso") && unaCategoria.Estatus.Equals("Activa"));
+        return categoriasIngresoYActivas;
+    }
+
+    private void VaciarMensaje()
+    {
+        _successMessage = "";
+        _errorMessage = "";
+    }
+
+    private Categoria ConseguirCategoriaPorNombre()
+    {
+        var unaCategoria = LogicaCategoria.ObtenerCategoriasDeEspacio(_space).Find(categoria => categoria.Nombre == (_nombreCategoria));
+        return unaCategoria;
+    }
+
+    private Cuenta ConseguirCuentaPorNombre()
+    {
+        return LogicaCuenta.ListarCuentas(_space).Find(unaCuenta => unaCuenta.Nombre.Equals(_nombreCuenta));
+    }
+
+    private bool ExisteCotizacionParaFecha()
+    {
+        return (LogicaTipoDeCambio.ConseguirCotizacionPorFecha(_fecha, _moneda, _space) != null);
+    }
+
+    private void MostrarMensajeDeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeDeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void crearTransaccion()
+    {
+        Categoria categoria = ConseguirCategoriaPorNombre();
+        Cuenta cuenta = ConseguirCuentaPorNombre();
+        try
+        {
+            LogicaTransaccion.ValidarInputs(categoria, cuenta,_monto );
+            if (cuenta.GetType() == typeof(TarjetaCredito))
+            {
+                double saldoAntesDeLaTransaccion = LogicaCuenta.CalcularSaldoDisponibleTarjeta(LogicaTipoDeCambio, _space, (TarjetaCredito)cuenta, LogicaTransaccion);
+                double saldoAntesDeLaTransaccionEnUYU = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, cuenta.Moneda, saldoAntesDeLaTransaccion, _fecha);
+                double montoDeMonedaElegidaEnUYUs = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, _moneda, _monto, _fecha);
+                double total = saldoAntesDeLaTransaccionEnUYU + montoDeMonedaElegidaEnUYUs;
+                double saldoDespuesDeLaTransaccionEnMonedaOriginal = LogicaTipoDeCambio.PasarDeUYUAMonedaDestino(_space,total,_fecha,cuenta.Moneda);
+                var transaccionNueva = ConseguirTransaccion(categoria, cuenta);
+                LogicaTransaccion.NuevaTransaccion(transaccionNueva);
+                saldoFinal = saldoDespuesDeLaTransaccionEnMonedaOriginal;
+
+            }
+            else
+            {
+                double saldoAntesDeLaTransaccion = LogicaCuenta.CalcularSaldoDisponibleCuentasMonetarias(LogicaTipoDeCambio, _space, (CuentaMonetaria)cuenta, LogicaTransaccion);
+                double saldoAntesDeLaTransaccionEnUYU = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, cuenta.Moneda, saldoAntesDeLaTransaccion, _fecha);
+                double montoDeMonedaElegidaEnUYUs = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, _moneda, _monto, _fecha);
+                double total = saldoAntesDeLaTransaccionEnUYU + montoDeMonedaElegidaEnUYUs;
+                double saldoDespuesDeLaTransaccionEnMonedaOriginal = LogicaTipoDeCambio.PasarDeUYUAMonedaDestino(_space,total,_fecha,cuenta.Moneda);
+                var transaccionNueva = ConseguirTransaccion(categoria, cuenta);
+                LogicaTransaccion.NuevaTransaccion(transaccionNueva);
+                saldoFinal = saldoDespuesDeLaTransaccionEnMonedaOriginal;
+            }
+            MostrarMensajeDeExito("Transaccion añadida con exito, ahora el saldo de su cuenta es: "+saldoFinal);
+            _titulo = "";
+            _monto = 0;
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeDeError(e.mensaje);
+        }
+        
+    }
+    
+    private Transaccion ConseguirTransaccion(Categoria categoria, Cuenta cuenta)
+    {
+        Transaccion nuevaTransaccion = new Transaccion()
+        {
+            Categoria = categoria,
+            Cuenta = cuenta,
+            Monto = _monto,
+            Titulo = _titulo,
+            Fecha = _fecha,
+            Moneda = _moneda,
+            TipoTransaccion = "Ingreso",
+            Espacio = _space
+        };
+        return nuevaTransaccion;
+    }
+
+}

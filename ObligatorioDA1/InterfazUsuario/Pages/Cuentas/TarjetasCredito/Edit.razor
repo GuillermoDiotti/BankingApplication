@@ -1,0 +1,145 @@
+﻿@page "/Cuentas/TarjetasCredtio/Edit/{cuenta}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaCuenta LogicaCuenta
+@inject LogicaEspacio LogicaEspacio
+@inject SessionLogic SessionLogic
+
+
+
+<h3>Editar Tarjeta</h3>
+<h5>Está modificando la tarjeta de datos:</h5>
+<p>Nombre: @_cuentaActual.Nombre</p>
+<p>Moneda: @_cuentaActual.Moneda</p>
+<p>Ultimos digitos:@_cuentaActual.UltimosDigitos</p>
+<p>Banco:@_cuentaActual.BancoEmisor</p>
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <form @onsubmit="SaveChanges">
+            <div class="form-group">
+                <label for="bancoEmisor">Banco Emisor</label>
+                <input type="text" class="form-control" id="bancoEmisor" enabled="false" @bind="_bancoEmisor"/>
+            </div>
+            <div class="form-group">
+                <label for="digitos">Ultimos cuatro digitos</label>
+                <input type="text" class="form-control" id="digitos" @bind="_ultimosDigitos" maxlength="4" minlength="4" pattern="[0-9]{4}"/>
+            </div>
+            <div class="form-group">
+                <label for="fechaCierre">Fecha De Cierre</label>
+                <input type="date" class="form-control" id="fechaCierre" @bind="_fechaCierre"/>
+            </div>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <a href="/Cuentas/TarjetasCredito/List">Cancelar</a>
+
+        </form>
+        <a href="/home">Cancelar</a>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </section>
+</div>
+
+@code {
+
+    [Parameter]
+    public string? Cuenta { get; set; }
+
+
+    private string _errorMessage;
+    private string _successMessage;
+    private TarjetaCredito? _cuentaActual;
+
+    private string? _bancoEmisor;
+    private string _ultimosDigitos;
+    private DateTime _fechaCierre;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _fechaCierre = DateTime.Now;
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _errorMessage = _successMessage = "";
+        _cuentaActual = EncontrarCuenta();
+    }
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            if (_ultimosDigitos == _cuentaActual.UltimosDigitos)
+            {
+                throw new LogicException("ERROR:Los digitos no pueden ser iguales a los anteriores");
+            }
+            if (string.IsNullOrEmpty(_bancoEmisor))
+            {
+                throw new LogicException("ERROR: El banco emisor no puede ser vacio");
+            }
+            if (SeCambioCuenta())
+            {
+                MostrarMensajeExito("Los cambios han sido guardado con exito");
+            }
+            else
+            {
+                throw new LogicException("ERROR: El formato insertado en los digitos no es correcto");
+            }
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+    }
+
+    private bool SeCambioCuenta()
+    {
+        if (string.IsNullOrEmpty(_ultimosDigitos)) return false;
+        if (LogicaCuenta.ChequearFormatoDigitos(_ultimosDigitos))
+        {
+            TarjetaCredito updatedTarjeta = new TarjetaCredito()
+            {
+                Id = _cuentaActual.Id,
+                Espacio = _space,
+                Nombre = _cuentaActual.Nombre,
+                Moneda = _cuentaActual.Moneda,
+                UltimosDigitos = _ultimosDigitos,
+                FechaCierre = _fechaCierre,
+                BancoEmisor = _bancoEmisor
+            };
+            LogicaCuenta.ModificarTarjeta(_space, updatedTarjeta);
+            return true;
+        }
+        return false;
+    }
+
+    private TarjetaCredito EncontrarCuenta()
+    {
+        return LogicaCuenta.ListarCuentas(_space).FindAll(unaCuenta => unaCuenta.GetType() == typeof(TarjetaCredito)).Cast<TarjetaCredito>().FirstOrDefault(t => Cuenta.Equals(t.Nombre));
+    }
+
+    private void VaciarMensaje()
+    {
+        _errorMessage = _successMessage = "";
+    }
+
+}

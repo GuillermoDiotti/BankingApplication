@@ -1,0 +1,94 @@
+﻿@page "/Cuentas/Monetarias/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject NavigationManager NavigationManager
+@inject LogicaCuenta LogicaCuenta
+@inject LogicaEspacio LogicaEspacio
+@inject LogicaTransaccion LogicaTransaccion
+@inject SessionLogic SessionLogic
+
+
+<h2>
+    Cuentas Monetarias
+    <a href="/Cuentas/Monetarias/Create"  class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Nombre</th>
+        <th>Moneda</th>
+        <th>Fecha Creacion</th>
+        <th>Monto Inicial</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_cuentasMonetarias != null)
+    {
+        @foreach (CuentaMonetaria unaCuenta in LogicaCuenta.ListarCuentasMonetarias(_space))
+        {
+            <tr>
+                <td>@unaCuenta.Nombre</td>
+                <td>@unaCuenta.Moneda</td>
+                <td>@unaCuenta.FechaCreacion.ToString("dd-MM-yyyy")</td>
+                <td>@unaCuenta.MontoInicial</td>
+                <td>
+
+                    <a class="btn btn-success btn-sm" href="/Cuentas/Monetarias/Edit/@EditarCuenta(unaCuenta)">Editar</a>
+
+                    <button class="btn btn-danger btn-sm" @onclick="(() => EliminarCuenta(unaCuenta))">Eliminar</button>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+@if (!string.IsNullOrEmpty(_mensaje))
+{
+    <p class="error-message">
+        @_mensaje
+    </p>
+}
+
+@code {
+
+    string _mensaje = "" ;
+    private List<CuentaMonetaria> _cuentasMonetarias;
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        var todasLasCuentas = LogicaCuenta.ListarCuentas(_space).ToList();
+        _cuentasMonetarias = todasLasCuentas.OfType<CuentaMonetaria>().ToList();
+    }
+
+    private string EditarCuenta(Cuenta c)
+    {
+        return c.Nombre;
+    }
+
+    private void MostrarMensaje(string mensaje)
+    {
+        _mensaje = mensaje;
+    }
+
+    private void EliminarCuenta(CuentaMonetaria unaCuenta)
+    {
+        try
+        {
+            LogicaCuenta.EliminarCuenta(unaCuenta, LogicaTransaccion);
+            NavigationManager.NavigateTo("/Cuentas/Monetarias/List");
+
+            var todasLasCuentas = LogicaCuenta.ListarCuentas(_space).ToList();
+            _cuentasMonetarias = todasLasCuentas.OfType<CuentaMonetaria>().ToList();
+        }
+        catch (LogicException e)
+        {
+            MostrarMensaje(e.Message);
+        }
+    }
+}

@@ -1,0 +1,149 @@
+﻿@page "/Transacciones/Costos/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject NavigationManager NavigationManager
+@inject LogicaCuenta Accountlogic
+@inject LogicaTipoDeCambio Currencylogic
+@inject LogicaTransaccion TransactionLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h2>
+    Transacciones De Costos
+    <a href="/Transacciones/Costos/Create" class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo</th>
+        <th>Fecha</th>
+        <th>Monto</th>
+        <th>Moneda</th>
+        <th>Cuenta</th>
+        <th>Categoria</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_transacciones != null)
+    {
+        @foreach (var t in _transacciones)
+        {
+            <tr>
+                <td>@t.Titulo</td>
+                <td>@t.Fecha</td>
+                <td>@t.Monto </td>
+                <td>@t.Moneda</td>
+                <td>@t.Cuenta.Nombre</td>
+                <td>@t.Categoria.Nombre</td>
+                <td>
+
+                    <a class="btn btn-success btn-sm" href="/Transacciones/Costos/Edit/@EditarTransaccion(t)">Editar</a>
+                    <button type="button" class="btn btn-primary" @onclick="() =>{ DuplicarTransaccion(t); RecargarPagina(); }">Duplicar Transaccion</button>
+
+                </td>
+            </tr>
+        }
+    }
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <p class="error-message">
+            @_errorMessage
+        </p>
+    }
+    </tbody>
+</table>
+
+
+@code {
+    private List<Transaccion> _transacciones = new List<Transaccion>();
+    private string _errorMessage = "";
+    private bool _seDuplico;
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _transacciones = TransactionLogic.ListarTransacciones(_space).FindAll(t => t.TipoTransaccion.Equals("Costo"));
+    }
+
+    private int EditarTransaccion(Transaccion t)
+    {
+        return t.Id;
+    }
+
+    private void DuplicarTransaccion(Transaccion t)
+    {
+        CrearTransaccion(t);
+    }
+
+    private void MostrarMensaje(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void CrearTransaccion(Transaccion transaccion)
+    {
+        try
+        {
+            double valorDeMonedaElegidaEnUYUs = Currencylogic.PasarAPesosUruguayos(_space, transaccion.Moneda, transaccion.Monto, transaccion.Fecha.Date);
+            if (transaccion.Cuenta.GetType() == typeof(TarjetaCredito))
+            {
+                var saldoActual = Accountlogic.CalcularSaldoDisponibleTarjeta(Currencylogic, _space, (TarjetaCredito)transaccion.Cuenta, TransactionLogic);
+                double saldoDeMiCuentaEnUYU = Currencylogic.PasarAPesosUruguayos(_space, transaccion.Cuenta.Moneda, saldoActual, transaccion.Fecha.Date);
+                if (saldoDeMiCuentaEnUYU < valorDeMonedaElegidaEnUYUs)
+                {
+                    throw new LogicException("ERROR: No tiene saldo suficiente, el saldo de su cuenta es:" + saldoActual);
+                }
+            }
+            else
+            {
+                var saldoActual = Accountlogic.CalcularSaldoDisponibleCuentasMonetarias(Currencylogic, _space, (CuentaMonetaria)transaccion.Cuenta, TransactionLogic);
+                double saldoDeMiCuentaEnUYU = Currencylogic.PasarAPesosUruguayos(_space, transaccion.Cuenta.Moneda, saldoActual, transaccion.Fecha.Date);
+                if (saldoDeMiCuentaEnUYU < valorDeMonedaElegidaEnUYUs)
+                {
+                    throw new LogicException("ERROR: No tiene saldo suficiente, el saldo de su cuenta es:" + saldoActual);
+                }
+            }
+        }
+        catch (LogicException e)
+        {
+            MostrarMensaje(e.Message);
+            return;
+        }
+        var transaccionNueva = ConstruirTransaccion(transaccion.Categoria, transaccion.Cuenta, transaccion);
+        transaccionNueva.TipoTransaccion = "Costo";
+        TransactionLogic.NuevaTransaccion(transaccionNueva);
+        _seDuplico = true;
+    }
+
+    private Transaccion ConstruirTransaccion(Categoria categoria, Cuenta cuenta, Transaccion transaccion)
+    {
+        var nuevaTransaccion = new Transaccion()
+        {
+            Categoria = categoria,
+            Cuenta = cuenta,
+            Monto = transaccion.Monto,
+            Titulo = transaccion.Titulo,
+            Fecha = DateTime.Now,
+            Moneda = transaccion.Moneda,
+            Espacio = _space
+        };
+        return nuevaTransaccion;
+    }
+
+    private void RecargarPagina()
+    {
+        if (_seDuplico)
+        {
+            NavigationManager.NavigateTo("/Transacciones/Costos/List");
+            _transacciones = TransactionLogic.ListarTransacciones(_space).FindAll(t => t.TipoTransaccion.Equals("Costo"));
+        }
+    }
+
+}

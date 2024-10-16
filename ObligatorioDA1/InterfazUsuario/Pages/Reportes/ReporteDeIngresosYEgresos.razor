@@ -1,0 +1,147 @@
+@page "/Reportes/ReporteDeIngresosYEgresos"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@using Syncfusion.Blazor.Charts
+@using Syncfusion.Blazor
+@using Syncfusion.Blazor.Calendars
+@using Syncfusion.Blazor.Charts
+@using Syncfusion.Blazor.DropDowns
+@inject LogicaReporte ReportLogic
+@inject LogicaTransaccion TransactionLogic
+@inject LogicaTipoDeCambio CurrencyLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h1>Reporte De Ingresos Y Egresos</h1>
+<label for="mes">Seleccione un Mes:</label>
+<select id="mes" name="mes" @bind="_mes">
+    <option value=1>Enero</option>
+    <option value=2>Febrero</option>
+    <option value=3>Marzo</option>
+    <option value=4>Abril</option>
+    <option value=5>Mayo</option>
+    <option value=6>Junio</option>
+    <option value=7>Julio</option>
+    <option value=8>Agosto</option>
+    <option value=9>Septiembre</option>
+    <option value=10>Octubre</option>
+    <option value=11>Noviembre</option>
+    <option value=12>Diciembre</option>
+</select>
+<button type="button" class="btn btn-primary" @onclick="() => GenerarReportes(_mes)">Generar Reportes</button>
+<table class="table">
+    <thead>
+    <tr>
+        <th>Fecha</th>
+        @foreach(var reporte in _reportes)
+        {
+            <th>@reporte.DiaDelMes</th>
+        }
+        
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Ingreso</td>
+        @foreach(var reporte in _reportes)
+        {
+            <th>@reporte.Ingreso</th>
+        }
+        
+    </tr>
+    <tr>
+        <td>Egreso</td>
+        @foreach(var reporte in _reportes)
+        {
+            <th>@reporte.Egreso</th>
+        }
+
+    </tr>
+
+    </tbody>
+</table>
+
+<div style="display: flex; flex-wrap: wrap;">
+    @if (_reportes.Count > 0)
+    {
+        <div style="flex: 1; margin-right: 20px;">
+            <SfChart Title="Ingresos y Egresos">
+                <ChartPrimaryXAxis Title="Fecha" ValueType="Syncfusion.Blazor.Charts.ValueType.Category"></ChartPrimaryXAxis>
+                <ChartPrimaryYAxis Title="Monto" ValueType="Syncfusion.Blazor.Charts.ValueType.Double"></ChartPrimaryYAxis>
+                <ChartSeriesCollection>
+                    <ChartSeries DataSource="@_reportes" XName="DiaDelMes" YName="Ingreso" Type="ChartSeriesType.Column">
+                        <ChartMarker>
+                            <ChartDataLabel Visible="true"></ChartDataLabel>
+                        </ChartMarker>
+                    </ChartSeries>
+                    <ChartSeries DataSource="@_reportes" XName="DiaDelMes" YName="Egreso" Type="ChartSeriesType.Column">
+                        <ChartMarker>
+                            <ChartDataLabel Visible="true"></ChartDataLabel>
+                        </ChartMarker>
+                    </ChartSeries>
+                </ChartSeriesCollection>
+            </SfChart>
+        </div>
+        
+        <div style="flex: 1;">
+            <p>
+                Color negro: Transacciones costo
+                <br/>
+                Color verde: Transacciones ingreso
+            </p>
+        </div>
+    }
+    
+    @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <p class="error-message">
+                    @_errorMessage
+                </p>
+            }
+</div>
+
+
+@code {
+    private string _errorMessage;
+    private Espacio _space;
+    private int _mes;
+    private List<ReporteIngresosEgresos> _reportes = new List<ReporteIngresosEgresos>();
+
+
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+    
+    private void GenerarReportes(int mes)
+    {
+        try
+        {
+            int maxDiasMes = ObtenerCantidadDiasMes(mes);
+            List<ReporteIngresosEgresos> lista = ReportLogic.GenerarReporteIngresosEgresos(TransactionLogic, _space, mes, CurrencyLogic, maxDiasMes);
+            _reportes = lista;
+        }
+        catch (LogicException e)
+        {
+            _errorMessage= e.Message;
+        }
+        
+    }
+    
+    private int ObtenerCantidadDiasMes(int mes)
+    {
+        if (mes == 0)
+        {
+            throw new LogicException("Seleccione un mes");
+        }
+        DateTime primerDiaMes = new DateTime(DateTime.Now.Year, mes, 1);
+        DateTime ultimoDiaMes = primerDiaMes.AddMonths(1).AddDays(-1);
+        return ultimoDiaMes.Day;
+    }
+
+  
+        
+
+}

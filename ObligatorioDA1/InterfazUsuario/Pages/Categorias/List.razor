@@ -1,0 +1,103 @@
+@page "/Category/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+
+@inject LogicaCategoria LogicaCategoria
+@inject LogicaTransaccion LogicaTransaccion
+@inject LogicaObjetivos LogicaObjetivos
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+<section class="main gradient">
+    <h2>
+        Categorias
+        <a href="/Category/Create" class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+    </h2>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Fecha</th>
+            <th>Estatus</th>
+            <th>Tipo</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        @if (_categories != null)
+        {
+            @foreach (var category in _categories)
+            {
+                <tr>
+                    <td>@category.Nombre</td>
+                    <td>@category.FechaCreacion.ToString("dd-MM-yyyy")</td>
+                    <td>@category.Estatus</td>
+                    <td>@category.Tipo</td>
+                    <td>
+
+                        <a class="btn btn-success btn-sm" href="/Category/Edit/@EditCategory(category)">Editar</a>
+
+                        <button class="btn btn-danger btn-sm" @onclick="(() => DeleteCategory(category))">Eliminar</button>
+                    </td>
+                </tr>
+            }
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="error-message">
+                    @_errorMessage
+                </div>
+            }
+        }
+        </tbody>
+    </table>
+</section>
+
+@code {
+    private List<Categoria>? _categories;
+    private string _errorMessage;
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _categories = LogicaCategoria.ObtenerCategoriasDeEspacio(_space).ToList();
+    }
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void DeleteCategory(Categoria cat)
+    {
+        try
+        {
+            LogicaCategoria.EliminarCategoria(cat, LogicaTransaccion, LogicaObjetivos);
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+            return;
+        }
+        _categories = LogicaCategoria.ObtenerCategoriasDeEspacio(_space).ToList();
+    }
+
+    private bool TieneTransaccionAsociada(Categoria unaCategoria)
+    {
+        return LogicaCategoria.TieneTransaccionAsociada(_space, unaCategoria, LogicaTransaccion);
+    }
+
+    private bool TieneObjetivoAsociado(Categoria unaCategoria)
+    {
+        return LogicaCategoria.TieneObjetivoAsociado(_space, unaCategoria, LogicaObjetivos);
+    }
+
+    private int EditCategory(Categoria categoria)
+    {
+        return categoria.Id;
+    }
+
+}

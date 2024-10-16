@@ -1,0 +1,107 @@
+﻿@page "/Objetivos/Listar"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaObjetivos GoalsLogic
+@inject LogicaEspacio SpaceLogic
+@inject LogicaTipoDeCambio ExchangeLogic
+@inject LogicaTransaccion TransactionLogic
+@inject SessionLogic SessionLogic
+
+
+
+<h3>Lista De Objetivos</h3>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo</th>
+        <th>Monto Maximo</th>
+        <th>Categorias</th>
+        <th>Gasto Actual</th>
+        <th>Estatus</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_objetivos != null)
+    {
+        @foreach (ObjetivosGastos unObjetivo in GoalsLogic.ListarObjEspacio(_space))
+        {
+            <tr>
+                <td>@unObjetivo.Titulo</td>
+                <td>@unObjetivo.MontoMaximo</td>
+                <td>@NombreCategorias(unObjetivo)</td>
+                <td>@ConseguirGastos(unObjetivo)</td>
+                <td>@if (unObjetivo.URLHabilitada)
+                    {
+                        <p>Compartido</p>
+                        <td id="tdBotonDejarCompartir"><button type="button" @onclick="() => DejarDeCompartir(unObjetivo)" id="botonDejarCompartir" class="btn btn-primary">Dejar de compartir</button></td>
+                        <a target="_blank" href="/objetivo/@mensajeLink">
+                            Ver objetivo
+                        </a>  
+                    }
+                    else
+                    {
+                        <p>No compartido</p>
+                        <td id="tdBotonCompartir"><button type="button" id="botonCompartir" @onclick="() => generarURL(unObjetivo)" class="btn btn-primary">Compartir</button></td>
+                    }</td>
+                <td>
+                    
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+
+@code {
+    private List<ObjetivosGastos> _objetivos;
+
+    private Espacio _space;
+    private string mensajeLink = "";
+
+    private string NombreCategorias(ObjetivosGastos unObjetivo)
+    {
+        if (unObjetivo.Categorias != null)
+        {
+            return string.Join(", ", unObjetivo.Categorias.Select(c => c.Nombre));
+        }
+        return string.Empty;
+    }
+
+    private double ConseguirGastos(ObjetivosGastos unObjetivo)
+    {
+        return GoalsLogic.ConseguirGasto(unObjetivo,_space, ExchangeLogic, TransactionLogic);
+    }
+
+    private void generarURL(ObjetivosGastos o)
+    {
+        o.URLHabilitada = true;
+        string url = GoalsLogic.AgregarURL(o);
+        ObjetivosGastos updatedObjetivosGastos = new ObjetivosGastos()
+        {
+            Id = o.Id,
+            URL = url,
+            URLHabilitada = true,
+        };
+        GoalsLogic.ActualizarURL(updatedObjetivosGastos);
+        mensajeLink = url;
+    }
+    
+    private void DejarDeCompartir(ObjetivosGastos o)
+    {
+        o.URLHabilitada = false;
+        mensajeLink = "Se dejo de compartir con exito";
+    }
+    
+    protected override void OnInitialized()
+    {
+        _space = SpaceLogic.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _objetivos = GoalsLogic.ListarObjEspacio(_space);
+    }
+
+    
+    
+}

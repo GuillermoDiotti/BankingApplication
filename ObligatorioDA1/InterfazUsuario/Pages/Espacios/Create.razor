@@ -1,0 +1,82 @@
+    @page "/Espacios/Create"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaEspacio _LogicaEspacio
+@inject LogicaUsuario _LogicaUsuario
+@inject SessionLogic _SessionLogic
+
+
+<div class="bg" @onclick="vaciarMensajes">
+    <section class="form-container">
+        <h3>Crear nuevo espacio</h3>
+        <form @onsubmit="SaveChanges" >
+            <div class="form-group">
+                <label for="name">Nombre</label>
+                <input type="text" class="form-control" id="name" @bind="_nombre"/>
+            </div>           
+            <a href="/Espacios/List">Volver al inicio</a>
+            <button type="submit" class="btn btn-primary">Crear Espacio</button>
+                    
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <p class="error-message" >
+                            @_errorMessage
+                        </p>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(_successMessage))
+                    {
+                        <p class="success-message">
+                            @_successMessage
+                        </p>
+                                
+                    }
+        </form>
+    </section>
+</div>
+
+
+@code {
+    private string? _nombre;
+
+    private string _errorMessage = "";
+    private string _successMessage = "";
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            Espacio espacioNuevo = new Espacio()
+            {
+                AdminEspacio = _SessionLogic.UsuarioActivo,
+                NombreEspacio = _nombre,
+            };
+            _LogicaEspacio.CrearEspacio(espacioNuevo);
+            _SessionLogic.IngresarAEspacio(espacioNuevo);
+            MostrarMensajeExito("Espacio creado correctamente");
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+        
+    }
+
+    private void vaciarMensajes()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+    
+}

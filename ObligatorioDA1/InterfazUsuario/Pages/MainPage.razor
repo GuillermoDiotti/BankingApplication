@@ -1,0 +1,22 @@
+@page "/"
+@using Logica
+@using Dominio
+@using System.Reflection.Metadata
+@using InterfazUsuario.Data
+<PageTitle>App</PageTitle>
+@inject NavigationManager NavigationManager
+@inject SessionLogic SessionLogic
+ 
+@{
+    string url = SessionLogic.UsuarioActivo is null ? "/register" : "/home";
+    Redirigir(url);
+}
+
+
+@code {
+
+    private void Redirigir(string url)
+    {
+        NavigationManager.NavigateTo(url);
+    }  
+}

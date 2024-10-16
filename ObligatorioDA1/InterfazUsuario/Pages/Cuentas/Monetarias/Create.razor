@@ -1,0 +1,107 @@
+﻿@page "/Cuentas/Monetarias/Create"
+@using Dominio
+@using InterfazUsuario.Data
+@using Logica
+@inject LogicaCuenta LogicaCuenta
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+<PageTitle>CrearCuentaMonetaria</PageTitle>
+<h3>Crear Cuenta Monetaria</h3>
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <h3>Crear cuenta Monetaria</h3>
+        <form @onsubmit="CrearCuenta">
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control" id="nombre" @bind="_nombre" required/>
+            </div>
+            <div class="form-group">
+                <label for="montoInicial">Monto Inicial</label>
+                <input type="number" id="montoInicial" class="form-control" name="montoInicial" min="0" step="0.01" inputmode="decimal" @bind="_montoInicial" required>
+            </div>
+            <div class="form-group">
+                <label for="moneda">Moneda</label>
+                <select id="moneda" class="form-control" @bind="_moneda" required>
+                    <option value="UYU" selected>UYU</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear</button>
+        </form>
+        <a href="/Cuentas/Monetarias/List">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+                {
+                    <p class="success-message">
+                        @_successMessage
+                    </p>
+                }
+    </section>
+</div>
+
+
+@code {
+    private Cuenta? _cuenta;
+    private string _nombre;
+    private string _moneda = "UYU";
+    private double _montoInicial;
+    private string _successMessage = "";
+    private string _errorMessage = "";
+
+    private Espacio space;
+
+    protected override void OnInitialized()
+    {
+        space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+    
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void CrearCuenta()
+    {
+        try
+        {
+                CuentaMonetaria c = new CuentaMonetaria()
+                {
+                    Nombre = _nombre,
+                    FechaCreacion = DateTime.Now,
+                    Moneda = _moneda,
+                    MontoInicial = _montoInicial,
+                    Espacio = space
+                };
+                LogicaCuenta.AgregarCuentaMonetaria(c, space);
+                _successMessage = _nombre = "";
+                MostrarMensajeExito("Cuenta registrada con exito");
+                _montoInicial = 0;
+        }
+        catch(Exception e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+        
+    }
+    
+    private void VaciarMensaje()
+    {
+        _errorMessage = _successMessage =""; 
+    }
+    
+}

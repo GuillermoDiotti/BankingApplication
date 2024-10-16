@@ -1,0 +1,80 @@
+@page "/login"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+<PageTitle>Login</PageTitle>
+@inject LogicaEspacio SpaceLogic
+@inject LogicaUsuario UserLogic
+@inject NavigationManager NavigationManager
+@inject SessionLogic SessionLogic
+
+<div class="bg">
+    <section class="form-container form-center">
+        <h3>Iniciar Sesion</h3>
+        <form @onsubmit="LoginUsuario">
+            <div class="form-group">
+                <label for="mail">Mail</label>
+                <input type="email" class="form-control" id="mail" @bind="_mail" required/>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" class="form-control" id="password" @bind="_password" required/>
+            </div>
+
+            <button type="submit" class="btn btn-success">Iniciar Sesion</button>
+        </form>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+
+        <p>¿No tienes una cuenta? <NavLink href="/register" class="nav-span">Registrate</NavLink></p>
+    </section>
+</div>
+
+@code {
+    private string? _mail;
+    private string? _password;
+
+    private string? _errorMessage;
+    private List<Espacio>? _listaEspacios;
+
+    private void CambiarDeEspacio(Usuario user)
+    {
+        _listaEspacios = SpaceLogic.ObtenerEspaciosPorUsuario(user);
+        SessionLogic.IngresarAEspacio(_listaEspacios[0]);
+    }
+
+    private void LoginUsuario()
+    {
+        try
+        {
+            UserLogic.IniciarSesion(_mail, _password);
+            Usuario user = UserLogic.FindByMail(_mail);
+            LimpiarCampos();
+            LimpiarMessage();
+            SessionLogic.Login(user);
+            CambiarDeEspacio(user);
+            NavigationManager.NavigateTo("/home");
+        }
+        catch (Exception e)
+        {
+            _errorMessage = e.Message;
+            LimpiarCampos();
+        }
+
+    }
+    
+    private void LimpiarMessage()
+    {
+        _errorMessage = "";
+    }
+
+    private void LimpiarCampos()
+    {
+        _mail = _password = "";
+    }
+}

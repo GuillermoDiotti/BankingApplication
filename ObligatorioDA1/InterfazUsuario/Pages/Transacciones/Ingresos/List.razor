@@ -1,0 +1,102 @@
+@page "/Transacciones/Ingresos/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject NavigationManager NavigationManager
+@inject LogicaTransaccion Transactionlogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h2>
+    Transacciones De Ingresos
+    <a href="/Transacciones/Ingresos/Create" class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo</th>
+        <th>Fecha</th>
+        <th>Monto</th>
+        <th>Moneda</th>
+        <th>Cuenta</th>
+        <th>Categoria</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_transacciones != null)
+    {
+        @foreach (var t in _transacciones)
+        {
+            <tr>
+                <td>@t.Titulo</td>
+                <td>@t.Fecha</td>
+                <td>@t.Monto </td>
+                <td>@t.Moneda</td>
+                <td>@t.Cuenta.Nombre</td>
+                <td>@t.Categoria.Nombre</td>
+                <td>
+                    <a class="btn btn-success btn-sm" href="/Transacciones/Ingresos/Edit/@EditarTransaccion(t)">Editar</a>
+                    <button type="button" class="btn btn-primary" @onclick="() =>{ DuplicarTransaccion(t); RecargarPagina(); }">Duplicar Transaccion</button>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+
+@code {
+    private List<Transaccion>? _transacciones;
+    private string _successMessage = "";
+
+    private Espacio? _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _transacciones = Transactionlogic.ListarTransacciones(_space).FindAll(t => t.TipoTransaccion.Equals("Ingreso"));
+    }
+
+    private int EditarTransaccion(Transaccion t)
+    {
+        return t.Id;
+    }
+
+    private void DuplicarTransaccion(Transaccion t)
+    {
+        CrearTransaccion(t);
+    }
+    
+    private void CrearTransaccion(Transaccion transaccion)
+    {
+        var transaccionNueva = ConstruirTransaccion(transaccion);
+        Transactionlogic.NuevaTransaccion(transaccionNueva);
+    }
+
+    private Transaccion ConstruirTransaccion(Transaccion transaccion)
+    {
+        Transaccion nuevaTransaccion = new Transaccion()
+        {
+            Categoria = transaccion.Categoria,
+            Cuenta = transaccion.Cuenta,
+            Monto = transaccion.Monto,
+            Titulo = transaccion.Titulo,
+            Fecha = transaccion.Fecha,
+            Moneda = transaccion.Moneda,
+            TipoTransaccion = transaccion.TipoTransaccion,
+            Espacio = transaccion.Espacio
+        };
+        return nuevaTransaccion;
+    }
+    
+    private void RecargarPagina()
+    {
+        NavigationManager.NavigateTo("/Transacciones/Ingresos/List");
+        _transacciones = Transactionlogic.ListarTransacciones(_space).FindAll(t => t.TipoTransaccion.Equals("Ingreso"));
+    }
+
+}

@@ -1,0 +1,84 @@
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaCuenta AccountLogic
+@inject LogicaTipoDeCambio ExchangeLogic
+@inject LogicaTransaccion TransactionLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+@page "/Reportes/BalanceDeCuentas"
+<h3>Balance De Cuentas</h3>
+
+<div class="form-group">
+    <label for="tituloCuenta">Seleccione una cuenta</label>
+    <select id="tituloCuenta" name="tituloCuenta" class="form-control" @bind="_tituloCuenta">
+        <option value="">Seleccione Una Cuenta</option>
+        @foreach (var c in AccountLogic.ListarCuentasMonetarias(_space))
+        {
+            <option value="@c.Nombre">@c.Nombre</option>
+        }
+    </select>
+</div>
+<button type="button" class="btn btn-primary" @onclick="() => GenerarReportes(_tituloCuenta)">Generar Reportes</button>
+
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Saldo De La Cuenta</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>@_total</td>
+        <td></td>
+    </tr>
+    </tbody>
+</table>
+
+
+@code {
+    private string _tituloCuenta = "";
+    string _total = "";
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+
+
+    private void GenerarReportes(string nombre)
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(nombre))
+            {
+                var unaCuenta = EncontrarCuentaPorNombre(nombre);
+                _total = AccountLogic.CalcularSaldoDisponibleCuentasMonetarias(ExchangeLogic, _space, unaCuenta, TransactionLogic).ToString();
+                _total += unaCuenta.Moneda;
+            }
+            else
+            {
+                _total = "No se ha registrado ninguna transaccion";
+
+            }
+        }
+        catch (Exception e)
+        {
+            _total = e.Message;
+        }
+        
+    }
+
+    private CuentaMonetaria EncontrarCuentaPorNombre(string nombre)
+    {
+        return AccountLogic.ListarCuentasMonetarias(_space).FirstOrDefault(unaCuenta => unaCuenta.Nombre == nombre) as CuentaMonetaria;
+    }
+
+
+}

@@ -1,0 +1,87 @@
+@using Dominio
+@using Logica
+@using System.Net
+@using System.Reflection.Metadata
+<PageTitle>Objetivo Compartido</PageTitle>
+@inject LogicaObjetivos GoalsLogic
+@inject LogicaEspacio SpaceLogic
+@inject LogicaTransaccion TransactionLogic
+@inject LogicaCategoria CategoryLogic
+
+@page "/objetivo/{token}"
+@{
+    if (objetivoActual != null && objetivoActual.URLHabilitada)
+    {
+        <div>
+            <h1>ObjetivoCompartido</h1>
+            <h3>Objetivo de @objetivoActual?.UsuarioCreador.Name </h3>
+            <h3>Categoria: @conseguirNombresCategorias(objetivoActual) </h3>
+            <h3>Gastado actualmente:@gastoActual(objetivoActual) </h3> 
+        </div>
+    }
+    else
+    {
+        <div class="error-message">
+            Error: El objetivo no existe o se ha dejado de compartir
+            
+            <p>@SpaceLogic.ObtenerListaEspacios().Count</p>
+        </div>
+    }
+    
+    
+}
+
+@code {
+
+    [Parameter]
+    public string token { get; set; }
+
+    public ObjetivosGastos objetivoActual;
+    private List<Espacio> espacios;
+
+    private string str = "";
+
+    protected override void OnInitialized()
+    {
+        espacios = SpaceLogic.ObtenerListaEspacios();
+        for (int i = 0; i < espacios.Count; i++)
+        {
+            var espacioActual = espacios[i];
+            for (int j = 0; j < GoalsLogic.ListarObjEspacio(espacioActual).Count; j++)
+            {
+                var objetivo = GoalsLogic.ListarObjEspacio(espacioActual)[j];
+                if (objetivo.URL == token)
+                {
+                    objetivoActual = objetivo;
+                    return;
+                }
+            }
+        }
+    }
+
+    private string conseguirNombresCategorias(ObjetivosGastos o)
+    {
+        var aux = o?.Categorias;
+        var respuesta = "";
+        foreach (var c in aux)
+        {
+            respuesta = respuesta + ", " + c.Nombre;
+        }
+        return respuesta;
+    }
+
+    private double gastoActual(ObjetivosGastos o)
+    {
+        double total = 0;
+        var espacio = o.Espacio;
+        foreach (var transaction in TransactionLogic.ListarTransacciones(espacio))
+        {
+            if (o.Categorias.Contains(transaction.Categoria) && espacio.MiembrosEspacio.Contains(o.UsuarioCreador))
+            {
+                total += transaction.Monto;
+            }
+        }
+        return total;
+    }
+
+}

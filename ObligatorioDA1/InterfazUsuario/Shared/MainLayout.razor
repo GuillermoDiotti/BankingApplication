@@ -1,0 +1,18 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+
+    @{
+        string[] path = NavigationManager.Uri.Split("/");
+        int length = path.Length;
+        string uri = path[length - 1];
+
+        if (uri != "register" && uri != "login" && uri != "Edit" && path[length-2] != "objetivo")
+        {
+            <NavMenu/>
+        }
+    }
+    <main class="container">
+            @Body
+    </main>
+

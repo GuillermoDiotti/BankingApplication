@@ -1,0 +1,185 @@
+@page "/Espacio/EditMembers/{id:int}"
+@using Logica
+@using Dominio
+@inject LogicaEspacio SpaceLogic
+@inject LogicaUsuario UserLogic
+
+<h3>Editar Miembros de Espacio</h3>
+
+
+<h5>Está modificando el espacio de datos:</h5> 
+<p>Nombre: @espacioAEditar.NombreEspacio</p> 
+<p>Administrador: @usuarioAdmin.Name</p> 
+<div class="bg">
+    
+    
+    <div class="bg">
+        <section class="form-container">
+            <div @onclick="VaciarMensaje">
+                <h4>Eliminar miembros del Espacio</h4>
+                <form @onsubmit="() => eliminarMiembro(miembroAEliminarCorreo)">
+                    <div class="form-group">
+                        <label for="miembros">Miembros</label>
+                        <select id="miembros" name="miembros" @bind="miembroAEliminarCorreo">
+                            @for (int i = 0; i < @_miembros.Count; i++)
+                            {
+                                <option value="@_miembros[i].Mail">@_miembros[i].Name, @_miembros[i].Mail</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Eliminar Miembro</button>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <div class="bg">
+        <section class="form-container">
+            <div @onclick="VaciarMensajes">
+                <h4>Añadir miembros al Espacio</h4>
+                <form @onsubmit="() => AgregarMiembro(_usuarioAgregarCorreo)">
+                    <div class="form-group">
+                        <label for="miembros">Buscar usuario</label>
+                        <select id="miembros" class="form-control" @bind="_usuarioAgregarCorreo" required>
+                            @foreach (var user in SpaceLogic.ObtenerMiembrosFueraDelEspacio(espacioAEditar, UserLogic))
+                            {
+                                <option value="@user.Mail">@user.Name, @user.Mail</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </form>
+            </div>
+        </section>
+    </div>
+
+
+
+</div>
+
+<hr>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <p class="error-message">
+        @_errorMessage
+    </p>
+}
+             
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <p class="success-message">
+        @_successMessage
+    </p>
+}
+
+
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+    private Espacio espacioAEditar;
+    private Usuario usuarioAdmin;
+    
+    private List<Usuario> _miembros;
+    private string? _nombre;
+    private Usuario _usuarioAgregarId;
+    private Usuario? miembroAEliminar;
+    
+    private string _errorMessage = "";
+    private string _successMessage = "";
+    private string _usuarioAgregarCorreo="";
+
+
+    protected override void OnInitialized()
+    {
+        espacioAEditar = BuscarEspacioPorId(id);
+        usuarioAdmin = conseguriUsuario();
+        _miembros = SpaceLogic.ObtenerMiembrosEspacio(espacioAEditar);
+    }
+    
+    private string miembroAEliminarCorreo="";
+
+    
+    private void eliminarMiembro(string correo)
+    {
+        try
+        {
+            var usuarioAEliminar = UserLogic.ConseguirUsuarioPorMail(correo);
+            SpaceLogic.EliminarMiembro(usuarioAEliminar, espacioAEditar);
+            MostrarMensajeExito("Usuario eliminado correctamente");
+            OnInitialized();
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+        
+    }
+    
+    private void VaciarMensaje()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+
+    
+    private Espacio BuscarEspacioPorId(int id)
+    {
+        return SpaceLogic.ObtenerListaEspacios().ToList().FirstOrDefault(x => x.Id == id);
+    }
+
+    private Usuario? BuscarUsuario(string mail)
+    {
+        var usuarios = SpaceLogic.ObtenerMiembrosFueraDelEspacio(espacioAEditar, UserLogic);
+        return usuarios.FirstOrDefault(user => user.Mail.Equals(mail));
+    }
+
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+
+    private void AgregarMiembro(string correo)
+    {
+        try
+        {
+            var usuarioAgregar = UserLogic.ConseguirUsuarioPorMail(correo);
+            if (string.IsNullOrEmpty(correo) || usuarioAgregar == null)
+            {
+                throw new LogicException("Seleccione un usuario válido");
+            }
+
+            SpaceLogic.AgregarMiembro(usuarioAgregar, espacioAEditar);
+            MostrarMensajeExito("Usuario agregado correctamente");
+            OnInitialized();
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+    }
+    
+
+
+    private void VaciarMensajes()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+
+   
+
+    private Usuario conseguriUsuario()
+    {
+        return UserLogic.ConseguirUsuarioPorId(espacioAEditar.AdminEspacioId);   
+    }
+
+}

@@ -1,0 +1,144 @@
+@page "/Cuentas/TarjetasCredito/Create"
+@using Dominio
+@using Logica
+@using System.Net
+@using System.Reflection.Metadata
+@using InterfazUsuario.Data
+<PageTitle>CrearTarjetaCredito</PageTitle>
+@inject LogicaCuenta LogicaCuenta
+@inject LogicaEspacio LogicaEspacio
+@inject SessionLogic SessionLogic
+
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <h3>Crear cuenta de tarjeta de credito</h3>
+        <form @onsubmit="CrearCuenta">
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control" id="nombre" @bind="_nombre" required/>
+            </div>
+            <div class="form-group">
+                <label for="montoInicial">Credito Disponibe</label>
+                <input type="number" id="montoInicial" name="montoInicial" class="form-control" step="0.01" inputmode="decimal" @bind="_creditoDispoinble" required>
+            </div>
+            <div class="form-group">
+                <label for="moneda">Moneda</label>
+                <select id="moneda" class="form-control" @bind="_moneda" required>
+                    <option value="UYU" selected>UYU</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="digitos">Ultimos cuatro digitos</label>
+                <input type="text" class="form-control" id="digitos" @bind="_digitosStr" maxlength="4" minlength="4" pattern="[0-9]{4}" required/>
+            </div>
+            <div class="form-group">
+                <label for="banco">Banco emisor</label>
+                <input type="text" class="form-control" id="banco" @bind="_banco" required/>
+            </div>
+            <div class="form-group">
+                <label for="fechaCierre">Fecha de cierre</label>
+                <input type="date" class="form-control" id="fechaCierre" @bind="_fechaCierre" required/>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear</button>
+        </form>
+        <a href="/Cuentas/TarjetasCredito/List">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </section>
+</div>
+
+@code {
+    private double _creditoDispoinble;
+    private string _nombre;
+    private string _moneda = "UYU";
+    private string _digitosStr;
+    private string _banco;
+    private DateTime _fechaCierre;
+    private string _errorMessage;
+    private string _successMessage;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _fechaCierre = DateTime.Now;
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+    
+    private bool ExisteTarjetaCreditoEnEspacioActivo(string nombre)
+    {
+        return LogicaCuenta.ListarTarjetas(_space).Any(cuenta => cuenta.Nombre == nombre);
+    }
+    
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void CrearCuenta()
+    {
+       
+        try
+        {
+            if (_creditoDispoinble < 0)
+            {
+                throw new LogicException("El credito debe ser mayor a 0");
+            }
+            if (!ExisteTarjetaCreditoEnEspacioActivo(_nombre))
+            {
+                TarjetaCredito tarjeta = new TarjetaCredito()
+                {
+                    Nombre = _nombre,
+                    CreditoDisponible = _creditoDispoinble,
+                    BancoEmisor = _banco,
+                    UltimosDigitos = _digitosStr,
+                    FechaCierre = _fechaCierre,
+                    Moneda = _moneda,
+                    FechaCreacion = DateTime.Now,
+                    Espacio = _space
+                };
+                LogicaCuenta.AgregarTarjetaDeCredito(tarjeta, _space);
+                //_space.CuentasTarjetaCreditoEspacio.Add(NuevaTarjeta());                
+                _errorMessage = _nombre = _banco = _digitosStr = "";
+                _creditoDispoinble = 0;
+                _fechaCierre = DateTime.Now;
+                MostrarMensajeExito("Cuenta registrada con exito");
+            }
+            else
+            {
+                MostrarMensajeExito("La cuenta debe de tener un nombre unico");
+            }
+            
+        }
+        catch(Exception e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+
+    }
+
+    private void VaciarMensaje()
+    {
+        _errorMessage = _successMessage = "";
+    }
+    
+}

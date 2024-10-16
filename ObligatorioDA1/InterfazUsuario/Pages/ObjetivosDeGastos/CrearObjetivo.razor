@@ -1,0 +1,128 @@
+﻿@page "/Objetivos/Crear"
+@using Dominio
+@using InterfazUsuario.Data
+@using Logica
+<PageTitle>CrearObjetivo</PageTitle>
+@inject LogicaObjetivos GoalsLogic
+@inject LogicaEspacio SpaceLogic
+@inject LogicaCategoria CategoryLogic
+@inject SessionLogic SessionLogic
+@inject LogicaUsuario UserLogic
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <h3>Nueva Objetivo</h3>
+        <form @onsubmit="NuevoObjetivo">
+            <div class="form-group">
+                <label for="titulo">Titulo</label>
+                <input type="text" class="form-control" id="titulo" @bind="_titulo" required/>
+            </div>
+            <div class="form-group">
+                <label for="montoMax">Monto Maximo</label>
+                <input type="number" id="montoMax" name="montoMax" step="0.01" inputmode="decimal" @bind="_montoMaximo" required>
+            </div>
+            <div class="form-group">
+                <label for="categorias">Categorias a las que se le aplicará el objetivo</label>
+                <select id="categorias" name="categorias" @oninput="SeleccionarCategorias" multiple>
+                    @foreach (var unaCategoria in ConseguirCategoriasGastosDelUsuario())
+                    {
+                        var isSelected = _categoriasSeleccionadas.Contains(unaCategoria.Nombre);
+                        <option value="@unaCategoria.Nombre" selected="@isSelected">@unaCategoria.Nombre</option>
+                        Console.WriteLine(unaCategoria.ToString());
+                    }
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Aplicar</button>
+
+        </form>
+        <a href="/home">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <p class="error-message">
+                        @_errorMessage
+                    </p>
+                }
+
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </section>
+</div>
+
+@code {
+    private string _successMessage = "";
+    private string _errorMessage = "";
+    private string _titulo;
+    private double _montoMaximo;
+    private double _gastoActual;
+    private List<string> _categoriasSeleccionadas = new List<string>();
+
+    private Espacio _space;
+    private Usuario _usuario;
+
+    protected override void OnInitialized()
+    {
+        _space = SpaceLogic.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _usuario = UserLogic.ConseguirUsuarioPorId(SessionLogic.UsuarioActivo.Id);
+    }
+
+    private List<Categoria> ConseguirCategoriasGastosDelUsuario()
+    {
+        var todasLasCategorias = CategoryLogic.ObtenerCategoriasDeEspacio(_space).ToList();
+        var categoriasSoloGastos = todasLasCategorias.FindAll(unaCategoria => unaCategoria.Tipo.Equals("Costo"));
+        return categoriasSoloGastos;
+    }
+
+    private void VaciarMensaje()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+
+    private void SeleccionarCategorias(ChangeEventArgs e)
+    {
+        var opcionesSeleccionadas = ((string []) e.Value);
+        _categoriasSeleccionadas.AddRange(opcionesSeleccionadas);
+    }
+
+    private void MostrarMensajeDeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void NuevoObjetivo()
+    {
+        try
+        {
+            var categoriasSeleccionadas = ConseguirCategoriasGastosDelUsuario()
+                .Where(c => _categoriasSeleccionadas.Contains(c.Nombre))
+                .ToList();
+            ObjetivosGastos obj = new ObjetivosGastos()
+            {
+                Titulo = _titulo,
+                MontoMaximo = _montoMaximo,
+                GastoActual = 0,
+                Categorias = categoriasSeleccionadas,
+                URLHabilitada = false,
+                URL = "",
+                UsuarioCreador = _usuario,
+                Espacio = _space,
+            };
+            GoalsLogic.CrearObjetivo(obj);
+            _successMessage = "Objetivo creado con exito";
+            _titulo = "";
+            _montoMaximo = 0;
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeDeError(e.mensaje);
+        }
+        
+    }
+
+}

@@ -1,0 +1,112 @@
+@page "/Espacio/EditName/{id:int}"
+@using Logica
+@using Dominio
+@inject LogicaEspacio SpaceLogic
+@inject LogicaUsuario UserLogic
+
+<h3>Editar Nombre de Espacio</h3>
+
+<h5>Está modificando el espacio de datos:</h5>
+<p>Nombre: @espacioAEditar.NombreEspacio</p>
+<p>Administrador: @espacioAEditar.AdminEspacio.Name</p>
+<div class="form-group">
+    <label for="miembros">Miembros</label>
+    <select id="miembros" name="miembros">
+        @foreach (var user in _miembros)
+        {
+            <option value="@user.Mail">@user.Name, @user.Mail</option>
+        }
+    </select>
+</div>
+
+<div class="bg">
+    <section class="form-container">
+        <div @onclick=VaciarMensajes>
+            <h5>Editar el nombre del Espacio</h5>
+            <form @onsubmit="SaveChanges">
+                <div class="form-group">
+                    <label for="name">Ingrese un nombre nuevo</label>
+                    <input type="text" class="form-control" id="name" @bind="_nombre"/>
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <p class="error-message">
+                        @_errorMessage
+                    </p>
+                }
+
+                @if (!string.IsNullOrEmpty(_successMessage))
+                {
+                    <p class="success-message">
+                        @_successMessage
+                    </p>
+                }
+            </form>
+            
+        </div>
+    </section>
+</div>
+
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+    private Espacio espacioAEditar;
+    
+    private List<Usuario> _miembros;
+    private string? _nombre;
+    private string _mail;
+    
+    private string _errorMessage = "";
+    private string _successMessage = "";
+
+
+    protected override void OnInitialized()
+    {
+        espacioAEditar = BuscarEspacioPorId(id);
+        _miembros = SpaceLogic.ObtenerMiembrosEspacio(espacioAEditar);
+    }
+    
+    private Espacio BuscarEspacioPorId(int id)
+    {
+        return SpaceLogic.ObtenerListaEspacios().ToList().FirstOrDefault(x => x.Id == id);
+    }
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            Espacio espacioNuevo = new Espacio()
+            {
+                Id = espacioAEditar.Id,
+                NombreEspacio = _nombre,
+                MiembrosEspacio = espacioAEditar.MiembrosEspacio,
+            };
+            SpaceLogic.ActualiarEspacio(espacioNuevo);
+            MostrarMensajeExito("Espacio renombrado correctamente");
+            OnInitialized();
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+    }
+    
+    private void VaciarMensajes()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+
+}

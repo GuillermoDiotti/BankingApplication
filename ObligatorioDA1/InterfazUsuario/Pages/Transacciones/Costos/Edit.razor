@@ -1,0 +1,161 @@
+﻿@page "/Transacciones/Costos/Edit/{id:int}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaTipoDeCambio LogicaTipoDeCambio
+@inject LogicaCuenta LogicaCuenta
+@inject LogicaTransaccion LogicaTransaccion
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h3>Editar Transaccion</h3>
+<h5>Está modificando la transaccion de datos:</h5>
+<p>Titulo: @_transaccionActual.Titulo</p>
+<p>Fecha: @_transaccionActual.Fecha</p>
+<p>Monto: @_transaccionActual.Monto</p>
+<p>Moneda:@_transaccionActual.Moneda</p>
+<p>Categoria:@_transaccionActual.Categoria.Nombre</p>
+<p>Cuenta:@_transaccionActual.Cuenta.Nombre</p>
+
+<div @onclick="VaciarMensaje">
+    <form @onsubmit="SaveChanges" >
+        <div class="form-group">
+            <label for="moneda">Moneda</label>
+            <select id="moneda" class="form-control" @bind="_moneda" required>
+                <option value="UYU">UYU</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="monto">Monto</label>
+            <input type="number" class="form-control" id="monto" name="monto" step="0.01" inputmode="decimal" @bind="_monto" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <a href="/Transacciones/Costos/List">Cancelar</a>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </form>
+</div>
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Espacio _space;
+
+    private string _errorMessage;
+    private string _successMessage;
+    private Transaccion? _transaccionActual;
+
+    private double _monto;
+    private string _moneda = "";
+    private DateTime _fecha;
+    private string _nombreCuenta = "";
+    private string _nombreCategoria = "";
+    private double _montoReal;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _errorMessage = _successMessage = "";
+        _transaccionActual = EncontrarTransaccion(Id);
+    }
+    
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            if (_monto <= 0)
+            {
+                throw new LogicException("ERROR: El monto debe ser mayor a 0");
+            }
+            if (( ExisteCotizacionParaFecha() == null ||ExisteCotizacionParaFecha().Moneda=="UYU" )&& _moneda!="UYU") 
+            {   
+                throw new LogicException
+                    ("ERROR: No existe una cotizacion para la fecha seleccionada, cree la cotizacion primero");
+            }
+            double valorNuevoEnUYU = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, _moneda, _monto, _transaccionActual.Fecha);
+            double valorAntiguoEnUYU = LogicaTipoDeCambio.PasarAPesosUruguayos(_space, _transaccionActual.Moneda, _transaccionActual.Monto, _transaccionActual.Fecha);
+            double valorAntiguoEnMonedaDeLaCuenta = LogicaTipoDeCambio.PasarDeUYUAMonedaDestino(_space, valorAntiguoEnUYU, _transaccionActual.Fecha, _moneda);
+            double valorNuevoEnMonedaDeLaCuenta = LogicaTipoDeCambio.PasarDeUYUAMonedaDestino(_space, valorNuevoEnUYU, _transaccionActual.Fecha, _moneda);
+            if (_transaccionActual.Cuenta.GetType() == typeof(TarjetaCredito))
+            {
+                double miSaldoActual = LogicaCuenta.CalcularSaldoDisponibleTarjeta(LogicaTipoDeCambio, _space, (TarjetaCredito)_transaccionActual.Cuenta, LogicaTransaccion);
+                if (miSaldoActual + valorAntiguoEnMonedaDeLaCuenta < valorNuevoEnMonedaDeLaCuenta)
+                {
+                    throw new LogicException("ERROR: No tiene saldo suficiente, el saldo de su cuenta es:"
+                                             + miSaldoActual);
+                }
+            }
+            else
+            {
+                double miSaldoActual = LogicaCuenta.CalcularSaldoDisponibleCuentasMonetarias(LogicaTipoDeCambio, _space, (CuentaMonetaria)_transaccionActual.Cuenta, LogicaTransaccion);
+                if (miSaldoActual + valorAntiguoEnMonedaDeLaCuenta < valorNuevoEnMonedaDeLaCuenta)
+                {
+                    throw new LogicException("ERROR: No tiene saldo suficiente, el saldo de su cuenta es:"
+                                             + miSaldoActual);
+                }
+            }
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+            return;
+        }
+        Transaccion updatedTransaccion = new Transaccion()
+        {
+            Id = _transaccionActual.Id,
+            Titulo = _transaccionActual.Titulo,
+            Monto = _monto,
+            Moneda = _moneda,
+            Fecha = _transaccionActual.Fecha,
+            Categoria = _transaccionActual.Categoria,
+            Cuenta = _transaccionActual.Cuenta,
+            Espacio = _transaccionActual.Espacio,
+            TipoTransaccion = _transaccionActual.TipoTransaccion,
+        };
+        LogicaTransaccion.ModificarTransaccion(updatedTransaccion);
+        MostrarMensajeExito("La transaccion fue editada con exito");
+    }
+
+    private TipoDeCambio ExisteCotizacionParaFecha()
+    {
+        return LogicaTipoDeCambio.ConseguirCotizacionPorFecha(_transaccionActual.Fecha, _moneda, _space);
+    }
+
+    private Transaccion EncontrarTransaccion(int id)
+    {
+        return LogicaTransaccion.ListarTransacciones(_space).FirstOrDefault(unaTransaccion => id == unaTransaccion.Id);
+    }
+    
+    private void VaciarMensaje()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+
+}

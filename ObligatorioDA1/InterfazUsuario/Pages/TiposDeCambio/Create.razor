@@ -1,0 +1,98 @@
+@page "/TiposDeCambio/Crear"
+@using Dominio
+@using InterfazUsuario.Data
+@using Logica
+@inject LogicaTipoDeCambio CurrencyLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+
+<div class="bg">
+    <section class="form-container" @onclick="LimpiarMensajes">
+        <h3>Crear Tipo De Cambio</h3>
+        <form @onsubmit="crearCambio">      
+            <div class="form-group">
+                <label for="cotizacion">Cotizacion</label>
+                <input type="number" id="cotizacion" name="cotizacion" class="form-control" step="0.01" inputmode="decimal" @bind="_valorEnUYUs" required>
+            </div>
+            <select id="moneda" name="moneda" class="form-control" @bind="monedaElegida">
+                <option value="">Seleccione Una Moneda</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+            </select>
+            <div class="form-group">
+                <label for="fecha">Fecha a la que se le asignara dicha cotizacion</label>
+                <input type="date" class="form-control" id="fecha" @bind="_fechaCotizacion" required/>
+            </div>
+            <button type="submit" class="btn btn-primary">Aceptar</button>
+        </form>
+        <a href="/home">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </section>
+</div>
+
+@code {
+    private DateTime _fechaCotizacion;
+    private double _valorEnUYUs;
+    private string _successMessage;
+    private string _errorMessage;
+    private string monedaElegida;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _fechaCotizacion = DateTime.Now;
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+
+
+    private void LimpiarMensajes()
+    {
+        _successMessage = _errorMessage = "";
+    }
+
+    
+    private void MostrarMensajeDeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void crearCambio()
+    {
+        try
+        {
+            TipoDeCambio cambio = new TipoDeCambio()
+            {
+                Fecha = _fechaCotizacion,
+                Cotizacion = _valorEnUYUs,
+                Moneda = monedaElegida,
+                Espacio = _space
+            };
+            CurrencyLogic.CrearCotizacion(cambio);
+            _successMessage = "Tipo de cambio creado con exito";
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeDeError(e.mensaje);
+        }
+       
+        
+    }
+
+
+}

@@ -1,0 +1,83 @@
+@using Repository;
+@using Logica
+@using Dominio
+@inject NavigationManager NavigationManager
+
+<nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4 d-flex flex-row justify-content-between align-items-center">
+    <div class="container-fluid d-flex flex-row justify-content-between align-items-center navbar">
+        <button class="navbar-toggler @NavButtonCssClass" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+                aria-controls="navbarCollapse" aria-label="Toggle navigation" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar navbar-collapse @NavBarCssClass d-flex flex-row justify-content-between align-items-center" id="navbarCollapse" @onclick="ToggleNavMenu">
+            <ul class="navbar navbar-nav me-auto mb-2 mb-md-0">
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        <span class="oi oi-home" aria-hidden="true"></span> Home
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/Espacios/List">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Administrar Espacios
+                    </NavLink>
+                    </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/category/list">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Categorías
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/cuentas/inicio">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Cuentas
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/transacciones/inicio">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Transacciones
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/objetivos">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Objetivos de gastos
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/TiposDeCambio/Inicio">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Cotizaciones
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/Reportes/Inicio">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Reportes
+                    </NavLink>
+                </li>
+
+
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<style>
+    .navbar{
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private bool collapseNavMenu = true;
+    private string? NavBarCssClass => collapseNavMenu ? null : "show";
+    private string? NavButtonCssClass => collapseNavMenu ? "collapsed" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+
+    
+}

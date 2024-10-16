@@ -1,0 +1,92 @@
+@page "/TiposDeCambio/Editar/{Id:int}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaTipoDeCambio CurrencyLogic
+@inject LogicaTransaccion TransactionLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h3>Editar Tipo De Cambio</h3>
+<h5>Está modificando el cambio de datos:</h5>
+<p>Fecha: @_cambioActual.Fecha.ToString("dd-MM-yyyy")</p>
+<p>Cotizacion: @_cambioActual.Cotizacion</p>
+
+<form>
+    <div class="form-group">
+        <label for="nuevoValor">Nueva Cotizacion</label>
+        <input type="number" id="nuevoValor" name="nuevoValor" class="form-control" step="0.01" inputmode="decimal" @bind="_nuevaCotizacion" required>
+    </div>
+    <button type="button" class="btn btn-primary" @onclick="SaveChanges">Guardar cambios</button>
+    <a href="/home">Cancelar</a>
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <p class="error-message">
+            @_errorMessage
+        </p>
+    }
+    @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+</form>
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+
+    private string _errorMessage;
+    private string _successMessage;
+    private TipoDeCambio? _cambioActual;
+    private double _nuevaCotizacion;
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _errorMessage = "";
+        _cambioActual = EncontrarTipoDeCambio();
+    }
+    
+    private void MostrarMensajeDeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            _errorMessage = "";
+            
+            TipoDeCambio nuevaCotizacion = new TipoDeCambio()
+            {
+                Id = _cambioActual.Id,
+                Cotizacion = _nuevaCotizacion
+            };
+            CurrencyLogic.ModificarCotizacion(nuevaCotizacion, _cambioActual, TransactionLogic);
+            _successMessage ="Tipo de cambio modificado con exito";
+        }
+        catch (LogicException e)
+        {
+            _successMessage = "";
+            MostrarMensajeDeError(e.mensaje);
+        }
+        
+    }
+
+    private TipoDeCambio EncontrarTipoDeCambio()
+    {
+        return CurrencyLogic.listarCambiosPorEspacio(_space).FirstOrDefault(t => Id == t.Id);
+
+    }
+
+    
+
+}

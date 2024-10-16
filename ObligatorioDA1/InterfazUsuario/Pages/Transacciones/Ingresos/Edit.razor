@@ -1,0 +1,149 @@
+@page "/Transacciones/Ingresos/Edit/{id:int}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaTipoDeCambio LogicaTipoDeCambio
+@inject LogicaTransaccion LogicaTransaccion
+@inject LogicaCategoria LogicaCategoria
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h3>Editar Transaccion</h3>
+<h5>Está modificando la transaccion de datos:</h5>
+<p>Titulo: @_transaccionActual?.Titulo</p>
+<p>Fecha: @_transaccionActual?.Fecha</p>
+<p>Monto: @_transaccionActual?.Monto</p>
+<p>Moneda:@_transaccionActual?.Moneda</p>
+<p>Categoria:@_transaccionActual?.Categoria.Nombre</p>
+<p>Cuenta:@_transaccionActual?.Cuenta.Nombre</p>
+
+<div @onclick="VaciarMensaje">
+    <form  @onsubmit="SaveChanges" >
+        <div class="form-group">
+            <label for="moneda">Moneda</label>
+            <select id="moneda" class="form-control" @bind="_moneda" required>
+                <option value="UYU">UYU</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="monto">Monto</label>
+            <input class="form-control" type="number" id="monto" name="monto" step="0.01" inputmode="decimal" @bind="_monto" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <a href="/Transacciones/Ingresos/List">Cancelar</a>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <p class="error-message">
+                @_errorMessage
+            </p>
+        }
+    
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </form>
+</div>
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+
+    private string _errorMessage;
+    private string _successMessage;
+    private Transaccion? _transaccionActual;
+    private Espacio _space;
+    private double _monto;
+    private string _moneda = "";
+    private DateTime _fecha;
+    private string _nombreCuenta = "";
+    private string _nombreCategoria = "";
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _errorMessage = _successMessage = "";
+        _transaccionActual = EncontrarTransaccion(Id);
+    }
+    
+    private List<Categoria> conseguirCategoriasIngresoDelUsuario()
+    {
+        var todasLasCategorias = LogicaCategoria.ObtenerCategoriasDeEspacio(_space).ToList();
+        var categoriasIngresoYActivas = todasLasCategorias.FindAll(unaCategoria => unaCategoria.Tipo.Equals("Ingreso") && unaCategoria.Estatus.Equals("Activa"));
+        return categoriasIngresoYActivas;
+    }
+
+    private void VaciarMensaje()
+    {
+        _errorMessage = "";
+        _successMessage = "";
+    }
+    
+    private Categoria conseguirCategoriaPorNombre()
+    {
+        return LogicaCategoria.ObtenerCategoriasDeEspacio(_space).Find(unaCategoria => unaCategoria.Nombre==(_nombreCategoria));
+    }
+    
+    private void MostrarMensajeDeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeDeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void SaveChanges()
+    {
+        if (_monto <= 0)
+        {
+            MostrarMensajeDeError("ERROR: El monto debe ser mayor a 0");
+            return;
+        }
+        if (string.IsNullOrEmpty(_moneda))
+        {
+            MostrarMensajeDeError("ERROR: Ingrese un tipo de moneda valido");
+            return;
+        }
+        if (_moneda != "UYU" && !ExisteCotizacionParaFecha())
+        {
+            MostrarMensajeDeError("ERROR: No existe una cotizacion de esa moneda para la fecha seleccionada, cree la cotizacion primero");
+            return;
+        }
+        Transaccion updatedTransaccion = new Transaccion()
+        {
+            Id = _transaccionActual.Id,
+            Titulo = _transaccionActual.Titulo,
+            Monto = _monto,
+            Moneda = _moneda,
+            Fecha = _transaccionActual.Fecha,
+            Categoria = conseguirCategoriaPorNombre(),
+            Cuenta = _transaccionActual.Cuenta,
+            Espacio = _transaccionActual.Espacio,
+            TipoTransaccion = _transaccionActual.TipoTransaccion,
+        };
+        LogicaTransaccion.ModificarTransaccion(updatedTransaccion);
+        MostrarMensajeDeExito("La transaccion fue editada con exito");
+    }
+    
+    private bool ExisteCotizacionParaFecha()
+    {
+        return (LogicaTipoDeCambio.ConseguirCotizacionPorFecha(_transaccionActual.Fecha.Date, _moneda, _space) != null);
+    }
+    
+
+    private Transaccion EncontrarTransaccion(int id)
+    {
+        return LogicaTransaccion.ListarTransacciones(_space).FirstOrDefault(unaTransaccion => id == unaTransaccion.Id);
+    }
+
+}

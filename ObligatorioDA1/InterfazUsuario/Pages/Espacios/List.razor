@@ -1,0 +1,143 @@
+@page "/Espacios/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaEspacio SpaceLogic
+@inject LogicaUsuario UserLogic
+@inject NavigationManager NavigationManager
+@inject SessionLogic SessionLogic
+
+<h2>
+    Administrar Espacios
+    <a href="/Espacios/Create"  class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Nombre</th>
+        <th>Administrador</th>
+        <th>Miembros</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_espacios != null)
+    {
+        @foreach (var space in _espacios)
+        {
+            <tr>
+                <td>@space.NombreEspacio</td>
+                <td>@space.AdminEspacio.Name</td>
+                <td>
+                    <div class="form-group">
+                        <label for="miembros">Miembros</label>
+                        <select id="miembros" name="miembros">
+                            @foreach (var user in SpaceLogic.ObtenerMiembrosEspacio(space))
+                            {
+                                <option value="@user.Mail">@user.Name, @user.Mail</option>
+                            }
+                        </select>
+                    </div>
+                        
+                </td>
+                    
+                <td>
+                    <button class="btn btn-success btn-sm" @onclick="(() => editarNombre(space))">Editar Nombre</button>
+                    <button class="btn btn-success btn-sm" @onclick="(() => editarMiembros(space))">Editar Miembros</button>
+                    <button class="btn btn-success btn-sm" @onclick="(() => CambiarDeEspacio(space))">Ingresar al espacio</button>
+
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <p class="error-message">
+        @_errorMessage
+    </p>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <p class="success-message">
+        @_successMessage
+    </p>
+}
+
+
+@code {
+    private string _errorMessage = "";
+    private string _successMessage = "";
+
+    private List<Espacio> _espacios;
+
+    protected override void OnInitialized()
+    {
+        _espacios = SpaceLogic.ObtenerEspaciosPorUsuario(SessionLogic.UsuarioActivo);
+    }
+
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void CambiarDeEspacio(Espacio space)
+    {
+        try
+        {
+            if (SessionLogic.EspacioActivo == space)
+            {
+                MostrarMensajeExito("");
+                throw new LogicException("Ya te encuentras actualmente en ese espacio");
+            }
+            MostrarMensajeExito("Has cambiado al espacio " + space.NombreEspacio + " correctamente");
+            MostrarMensajeError("");
+            SessionLogic.IngresarAEspacio(space);
+        }
+        catch (LogicException e)
+        {
+            MostrarMensajeExito(e.Message);
+        }
+       
+    }
+    
+    private bool IsAdmin(Espacio espacio)
+    {
+        return espacio.AdminEspacio == SessionLogic.UsuarioActivo;
+    }
+
+    private void editarNombre(Espacio espacio)
+    {
+        if (IsAdmin(espacio))
+        {
+            string url = "/Espacio/EditName/" + espacio.Id;
+            NavigationManager.NavigateTo(url);
+        }
+        else
+        {
+            _errorMessage = "No eres administrador de este espacio";
+        }
+    }
+
+    private void editarMiembros(Espacio space)
+    {
+        if (IsAdmin(space))
+        {
+            string url = "/Espacio/EditMembers/" + space.Id;
+            NavigationManager.NavigateTo(url);
+        }
+        else
+        {
+            _errorMessage = "No eres administrador de este espacio";
+        }    }
+
+}

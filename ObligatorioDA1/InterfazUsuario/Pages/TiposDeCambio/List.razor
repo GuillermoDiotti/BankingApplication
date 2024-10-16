@@ -1,0 +1,91 @@
+@page "/TiposDeCambio/Listar"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaTipoDeCambio TipoDeCambioLogic
+@inject LogicaTransaccion TransaccionLogic
+@inject NavigationManager NavigationManager
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h2>
+    Tipos De Cambios
+    <a href="/TiposDeCambio/Crear"  class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Fecha</th>
+        <th>Cotizacion</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_cambios != null)
+    {
+        @foreach (TipoDeCambio unCambio in _cambios)
+        {
+            <tr>
+                <td>@unCambio.Fecha.ToString("dd-MM-yyyy")</td>
+                <td>@unCambio.Cotizacion$ = 1 @unCambio.Moneda$ </td>
+                <td>
+
+                    <a class="btn btn-success btn-sm" href="/TiposDeCambio/Editar/@EditarFechaTipoDeCambio(unCambio)">Editar</a>
+                    <button class="btn btn-danger btn-sm" @onclick="(() => EliminarTipoDeCambio(unCambio, unCambio.Moneda))">Eliminar</button>
+
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+@if (!string.IsNullOrEmpty(_message))
+    {
+        <p class="error-message">
+            @_message
+        </p>
+    }
+
+
+@code {
+    private string _message;
+    
+    private List<TipoDeCambio> _cambios;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _cambios = TipoDeCambioLogic.listarCambiosPorEspacio(_space);
+    }
+
+    private int EditarFechaTipoDeCambio(TipoDeCambio unCambio)
+    {
+        return unCambio.Id;
+    }
+
+    private void EliminarTipoDeCambio(TipoDeCambio unCambio, string moneda)
+    {
+        try
+        {
+            TipoDeCambioLogic.EliminarCambio(unCambio, _space, moneda, TransaccionLogic);
+            MostrarMensaje("Tipo De Cambio eliminado con exito");
+            NavigationManager.NavigateTo("/Transacciones/Costos/Create");
+            NavigationManager.NavigateTo("/TiposDeCambio/Listar");
+        }
+        catch (LogicException e)
+        {
+            MostrarMensaje(e.mensaje);
+        }
+        
+    }
+    
+    private void MostrarMensaje(string mensaje)
+    {
+        _message = mensaje;
+    }
+}

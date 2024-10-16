@@ -1,0 +1,67 @@
+@page "/Reportes/Objetivos"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+
+@inject LogicaReporte ReportLogic
+@inject LogicaEspacio SpaceLogic
+@inject LogicaObjetivos ObjetivosLogic
+@inject LogicaTipoDeCambio TipoDeCambioLogic
+@inject LogicaTransaccion TransaccionesLogic
+@inject SessionLogic SessionLogic
+
+
+
+<h1>Reporte De Objetivos De Gastos</h1>
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo</th>
+        <th>Monto Definido</th>
+        <th>Monto Gastado</th>
+        <th>Cumple Objetivo</th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_reportes != null)
+    {
+        @foreach (ReporteDeobjetivosDeGastos r in _reportes)
+        {
+            <tr>
+                <td>@r.TituloObjetivo</td>
+                <td>@r.MontoDefinido</td>
+                <td>@r.MontoGastado</td>
+                <td>@CumpleObjetivo(@r.CumpleObjetivo)</td>
+                <td>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+
+@code {
+    private List<ReporteDeobjetivosDeGastos> _reportes;
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = SpaceLogic.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _reportes = GenerarReportes();
+    }
+
+    private string CumpleObjetivo(bool cumple)
+    {
+        if (cumple) return "Cumple el objetivo";
+        return "No cumple el objetivo";
+    }
+
+    private List<ReporteDeobjetivosDeGastos> GenerarReportes()
+    {
+        var lista = ReportLogic.GenerarReporteDeObjetivos(ObjetivosLogic, ObjetivosLogic.ListarObjEspacio(_space), _space, TipoDeCambioLogic, TransaccionesLogic);
+        return lista;
+    }
+
+}

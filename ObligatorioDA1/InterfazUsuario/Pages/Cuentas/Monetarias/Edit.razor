@@ -1,0 +1,102 @@
+﻿@page "/Cuentas/Monetarias/Edit/{cuenta}"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject LogicaCuenta LogicaCuenta
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+<h3>Editar Cuenta Monetaria</h3>
+<h5>Está modificando la cuenta de datos:</h5>
+<p>Nombre: @_cuentaActual.Nombre</p>
+<p>Moneda: @_cuentaActual.Moneda</p>
+<p>Creada en: @_cuentaActual.FechaCreacion.ToString("dd-MM-yyyy")</p>
+
+
+<div class="bg" @onclick="VaciarMensaje">
+    <section class="form-container">
+        <form @onsubmit="SaveChanges">
+            <div class="form-group">
+                <label for="name">Nombre</label>
+                <input type="text" class="form-control" id="name" enabled="false" @bind="_nombre" />
+            </div>
+    
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            <a href="/Cuentas/Monetarias/List">Cancelar</a>
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <p class="error-message">
+                    @_errorMessage
+                </p>
+            }
+            @if (!string.IsNullOrEmpty(_successMessage))
+            {
+                <p class="success-message">
+                    @_successMessage
+                </p>
+            }
+        </form>
+    </section>
+</div>
+
+@code {
+    
+    [Parameter] public string? Cuenta { get; set; }
+
+    private string _errorMessage;
+    private string _successMessage;
+    private CuentaMonetaria? _cuentaActual;
+    private Espacio _space;
+    
+    private string? _nombre;
+    
+    protected override void OnInitialized()
+    {
+        _errorMessage = _successMessage = "";
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        _cuentaActual = EncontrarCuenta();
+    }
+    
+    private void MostrarMensajeError(string mensaje)
+    {
+        _errorMessage = mensaje;
+    }
+    
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+    
+    private void SaveChanges()
+    {
+        try
+        {
+            CuentaMonetaria updatedAccount = new CuentaMonetaria()
+            {
+                Id = _cuentaActual.Id,
+                Nombre = _nombre,
+                Moneda = _cuentaActual.Moneda,
+                FechaCreacion = _cuentaActual.FechaCreacion,
+                MontoInicial = _cuentaActual.MontoInicial,
+                Espacio = _space
+            };
+            LogicaCuenta.ModificarCuentaMonetaria(updatedAccount);
+            MostrarMensajeExito("Cuenta modificada con exito");
+        }
+        catch(LogicException e)
+        {
+            MostrarMensajeError(e.Message);
+        }
+    }
+    
+    private CuentaMonetaria EncontrarCuenta()
+    {
+        return LogicaCuenta.ListarCuentasMonetarias(_space).FirstOrDefault(c => Cuenta.Equals(c.Nombre)) as CuentaMonetaria;
+    }
+    
+    private void VaciarMensaje()
+    {
+        _errorMessage = _successMessage = "";
+    }
+    
+}

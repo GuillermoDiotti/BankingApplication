@@ -1,0 +1,87 @@
+@page "/Category/Create"
+@using Dominio
+@using InterfazUsuario.Data
+@using Logica
+@inject LogicaCategoria LogicaCategoria
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+<h3>CreateCategory</h3>
+
+<div class="bg">
+    <section class="form-container">
+        <h3>Crear Categoria</h3>
+        <form @onsubmit="CrearCategoria" @onclick="LimpiarMsjs">
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control" id="nombre" @bind="_nombre" required/>
+            </div>
+            <div class="form-group">
+                <label for="estatus">Estatus</label>
+                <select id="estatus" class="form-control" @bind="_estatus" required>
+                    <option value="Activa">Activa</option>
+                    <option value="Inactiva">Inactiva</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tipo">Tipo</label>
+                <select id="tipo" class="form-control" @bind="_tipo" required>
+                    <option value="Ingreso">Ingreso</option>
+                    <option value="Costo">Costo</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Registrar</button>
+        </form>
+        <a href="/Category/List">Volver al inicio</a>
+
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <p class="success-message">
+                @_successMessage
+            </p>
+        }
+    </section>
+</div>
+
+@code {
+    private string? _nombre;
+    private string _tipo = "Ingreso";
+    private string _estatus = "Activa";
+    private string? _successMessage;
+
+    private Espacio _space;
+
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+    
+
+    private void MostrarMensajeExito(string mensaje)
+    {
+        _successMessage = mensaje;
+    }
+
+    private void CrearCategoria()
+    {
+        Categoria nuevaCategoria = new Categoria()
+        {
+            Nombre = _nombre,
+            Tipo = _tipo,
+            Estatus = _estatus,
+            FechaCreacion = DateTime.Now.Date,
+            Espacio = _space
+        };
+        LogicaCategoria.AgregarCategoria(nuevaCategoria);
+        _nombre = _successMessage = "";
+        MostrarMensajeExito("Categoria registrada con exito");
+
+    }
+
+    private void LimpiarMsjs()
+    {
+        _successMessage = "";
+    }
+
+
+}

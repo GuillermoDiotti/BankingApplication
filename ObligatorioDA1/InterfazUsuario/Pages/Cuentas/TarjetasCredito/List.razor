@@ -1,0 +1,110 @@
+﻿@page "/Cuentas/TarjetasCredito/List"
+@using Logica
+@using Dominio
+@using InterfazUsuario.Data
+@inject NavigationManager NavigationManager
+@inject LogicaCuenta AccountLogic
+@inject LogicaTipoDeCambio TipoDeCambioLogic
+@inject LogicaTransaccion TransaccionLogic
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+<h2>
+    Tarjetas de Credito
+    <a href="/Cuentas/TarjetasCredito/Create"  class="btn btn-success btn-sm" style="float: right; margin-right: 40px;">Create +</a>
+
+</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Nombre</th>
+        <th>Moneda</th>
+        <th>Fecha Creacion</th>
+        <th>Ultimos Digitos</th>
+        <th>Banco Emisor</th>
+        <th>Fecha Cierre</th>
+        <th>Credito Disponible</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_cuentasTarjetasCredito != null)
+    {
+        @foreach (TarjetaCredito unaCuenta in AccountLogic.ListarTarjetas(_space))
+        {
+            <tr>
+                <td>@unaCuenta.Nombre</td>
+                <td>@unaCuenta.Moneda</td>
+                <td>@unaCuenta.FechaCreacion.ToString("dd-MM-yyyy")</td>
+                <td>@unaCuenta.UltimosDigitos</td>
+                <td>@unaCuenta.BancoEmisor</td>
+                <td>@unaCuenta.FechaCierre.ToString("dd-MM-yyyy")</td>
+                <td>@CalcularSaldo(unaCuenta)</td>
+                <td>
+
+                    <a class="btn btn-success btn-sm" href="/Cuentas/TarjetasCredtio/Edit/@EditarCuenta(unaCuenta)">Editar</a>
+
+                    <button class="btn btn-danger btn-sm" @onclick="(() => EliminarCuenta(unaCuenta))">Eliminar</button>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+@if (!string.IsNullOrEmpty(_mensaje))
+{
+    <p class="error-message">
+        @_mensaje
+    </p>
+}
+
+
+@code {
+    
+    string _mensaje = "" ;
+    private List<TarjetaCredito> _cuentasTarjetasCredito;
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+        var todasLasCuentas = AccountLogic.ListarCuentas(_space).ToList();
+        _cuentasTarjetasCredito = todasLasCuentas.OfType<TarjetaCredito>().ToList();
+    }
+
+    private string EditarCuenta(Cuenta unaCuenta)
+    {
+        return unaCuenta.Nombre;
+    }
+    
+    private void MostarMensaje(string mensaje)
+    {
+        _mensaje = mensaje;
+    }
+
+    private void EliminarCuenta(TarjetaCredito unaTarjeta)
+    {
+        try
+        {
+            AccountLogic.EliminarCuenta(unaTarjeta, TransaccionLogic);
+            NavigationManager.NavigateTo("/Cuentas/TarjetasCredito/List");
+            var todasLasCuentas = AccountLogic.ListarCuentas(_space).ToList();
+            _cuentasTarjetasCredito = todasLasCuentas.OfType<TarjetaCredito>().ToList();
+        }
+        catch(LogicException e)
+        {
+            MostarMensaje(e.Message);
+        }
+       
+        
+    }
+
+    private double CalcularSaldo(TarjetaCredito unaTarjeta)
+    {
+      return AccountLogic.CalcularSaldoDisponibleTarjeta(TipoDeCambioLogic, _space, unaTarjeta, TransaccionLogic);
+    }
+
+}

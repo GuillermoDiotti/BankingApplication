@@ -1,0 +1,32 @@
+@page "/home"
+@using Logica
+@using InterfazUsuario.Data
+
+@inject SessionLogic SessionLogic
+@inject NavigationManager NavigationManager
+@inject LogicaEspacio SpaceLogic
+<PageTitle>Home</PageTitle>
+
+
+<button class="btn btn-danger" @onclick="CerrarSesion" style="float: right; margin-right: 40px;">Cerrar sesion</button>
+<button class="btn btn-success" @onclick="AdministrarUsuario" style="float: right; margin-right: 40px;">Administrar Usuario</button>
+
+
+<h1>Bienvenido @SessionLogic.UsuarioActivo?.Name</h1>
+
+<h2>Usted se encuentra en el espacio: @SessionLogic.EspacioActivo.NombreEspacio</h2>
+
+
+@code {
+    private void CerrarSesion()
+    {
+        NavigationManager.NavigateTo("/register");
+        SessionLogic.LogOut();
+    }
+    
+    private void AdministrarUsuario()
+    {
+        NavigationManager.NavigateTo("/Edit");
+    }
+
+}

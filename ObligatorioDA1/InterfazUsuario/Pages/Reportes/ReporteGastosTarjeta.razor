@@ -1,0 +1,104 @@
+@using Logica
+@using Dominio
+@using System.Xml
+@using InterfazUsuario.Data
+
+@inject LogicaReporte ReportLogic
+@inject LogicaCuenta CuentaLogic
+@inject LogicaTransaccion TransaccionLogic
+@inject DateTimeProvider DateTimeProvider
+@inject SessionLogic SessionLogic
+@inject LogicaEspacio LogicaEspacio
+
+
+
+@page "/Reportes/ReportesDeGastosPorTarjeta"
+<h3>Reporte De Gastos De Tarjeta</h3>
+
+<div class="form-group">
+    <label for="tituloTarjeta">Seleccione una tarjeta</label>
+    <select id="tituloTarjeta" name="tituloTarjeta" class="form-control" @bind="_tituloTarjeta">
+        <option value="">Seleccione una Tarjeta</option>
+        @foreach (TarjetaCredito unaTarjeta in CuentaLogic.ListarTarjetas(_space))
+        {
+            <option value="@unaTarjeta.Nombre">@unaTarjeta.Nombre - @unaTarjeta.UltimosDigitos</option>
+        }
+    </select>
+</div>
+<button type="button" class="btn btn-primary" @onclick="() => GenerarReportes(_tituloTarjeta)">Generar Reportes</button>
+
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Titulo de la transaccion</th>
+        <th>Fecha</th>
+        <th>Gasto</th>
+        <th>Moneda</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    @if (_gastos != null)
+    {
+        @foreach (ReporteDeTarjeta r in _gastos)
+        {
+            <tr>
+                <td>@r.Titulo</td>
+                <td>@r.Fecha.ToString("dd-MM-yyyy")</td>
+                <td>@r.Gasto</td>
+                <td>@r.Moneda</td>
+                <td></td>
+            </tr>
+        }
+    }
+
+    </tbody>
+</table>
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <p class="error-message">
+        @_errorMessage
+    </p>
+}
+
+
+@code {
+    private List<ReporteDeTarjeta> _gastos;
+    private string _tituloTarjeta = "";
+    private string _errorMessage = "";
+
+
+    private Espacio _space;
+    
+    protected override void OnInitialized()
+    {
+        _space = LogicaEspacio.ObtenerEspacioPorId(SessionLogic.EspacioActivo.Id);
+    }
+
+
+    private void GenerarReportes(string nombre)
+    {
+        if (!string.IsNullOrEmpty(nombre))
+        {
+            var unaTarjeta = EncontrarTarjetaPorNombre(nombre);
+            var lista = ReportLogic.GenerarReportePorTarjeta(_space, unaTarjeta, TransaccionLogic, DateTimeProvider);
+            _gastos = lista;
+            if (lista.Count == 0)
+            {
+                _errorMessage = "No hay ningun gasto registrado dentro del utlimo cierre de tarjeta";
+            }
+        }
+        else
+        {
+            _errorMessage = "Seleccione una tarjeta";
+        }
+    }
+
+    private TarjetaCredito EncontrarTarjetaPorNombre(string nombre)
+    {
+        return CuentaLogic.ListarTarjetas(_space).FirstOrDefault(unaTarjeta => unaTarjeta.Nombre == nombre) as TarjetaCredito;
+    }
+
+
+}
